@@ -8,30 +8,41 @@ from copy import deepcopy
 
 import numpy as np
 import torch
-
+# 导入所需的模块，包括日志记录、数学计算、操作系统接口、随机数生成、抽象基类、深拷贝、NumPy 和 PyTorch。
 from algorithms.basePS.ps_client_trainer import PSTrainer
+# 从算法模块导入 PSTrainer 基类。
 from utils.data_utils import optimizer_to
+
 from model.FL_VAE import *
 from optim.AdamW import AdamW
 from utils.tool import *
 from utils.set import *
+# 导入一些工具和模型类，包括优化器转换函数、变分自编码器模型、AdamW 优化器以及其他工具和设置。
 from data_preprocessing.cifar10.datasets import Dataset_Personalize, Dataset_3Types_ImageData
+# 导入用于数据预处理的 Dataset_Personalize 和 Dataset_3Types_ImageData 类。
 import torchvision.transforms as transforms
 from utils.log_info import log_info
+# 导入 torchvision 的变换模块和日志信息工具。
 from utils.randaugment4fixmatch import RandAugmentMC, Cutout, RandAugment_no_CutOut 
-
+# 导入数据增强方法，包括 RandAugmentMC、Cutout 和 RandAugment_no_CutOut。
 sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), "../../../")))
+# 将项目根目录添加到模块搜索路径。
+
 
 class Client(PSTrainer):
-
+    # 定义 Client 类，继承自 PSTrainer。
     def __init__(self, client_index, train_ori_data, train_ori_targets, test_dataloader, train_data_num,
                  test_data_num, train_cls_counts_dict, device, args, model_trainer, vae_model, dataset_num):
+        # 构造函数，初始化客户端的各种属性，包括客户端索引、训练数据、测试数据加载器、
+        # 训练类别计数字典、设备信息、参数配置、模型训练器、VAE 模型和数据集数量。
         super().__init__(client_index, train_ori_data, train_ori_targets, test_dataloader, train_data_num,
                          test_data_num, device, args, model_trainer)
+        # 调用基类 PSTrainer 的构造函数。
         if args.VAE == True and vae_model is not None:
+            # 检查是否启用了 VAE 并且提供了 VAE 模型。
             logging.info(f"client {self.client_index} VAE Moel set up")
             self.vae_model = vae_model
-
+            # 保存 VAE 模型。
         self.test_dataloader = test_dataloader
         self.train_ori_data = train_ori_data  
         self.train_ori_targets = train_ori_targets
@@ -39,12 +50,14 @@ class Client(PSTrainer):
         self.dataset_num = dataset_num
 
         self.local_num_iterations = math.ceil(len(self.train_ori_data) / self.args.batch_size)
-
+        # 计算本地迭代次数。
 # -------------------------VAE optimization tool for different client------------------------#
         self.vae_optimizer =  AdamW([
             {'params': self.vae_model.parameters()}
         ], lr=1.e-3, betas=(0.9, 0.999), weight_decay=1.e-6)
+        # 创建 VAE 优化器实例。
         self._construct_train_ori_dataloader()
+        # 定义私有方法来构建原始训练数据加载器。
         if self.args.VAE_adaptive:
             self._set_local_traindata_property()
             logging.info(self.local_traindata_property)
@@ -67,10 +80,12 @@ class Client(PSTrainer):
                                                                   drop_last=False)
 
     def _attack(self,size, mean, std):  #
+        # 定义私有方法来生成噪声。
         rand = torch.normal(mean=mean, std=std, size=size).to(self.device)
         return rand
 
     def _set_local_traindata_property(self):
+        # 定义私有方法来设置本地训练数据属性。
         class_num = len(self.train_cls_counts_dict)
         clas_counts = [ self.train_cls_counts_dict[key] for key in self.train_cls_counts_dict.keys()]
         max_cls_counts = max(clas_counts)
@@ -81,8 +96,8 @@ class Client(PSTrainer):
         else:
             self.local_traindata_property = None
 
-
     def test_local_vae(self, round, epoch, mode):
+        # 定义测试本地 VAE 模型的方法。
         # set model as testing mode
         self.vae_model.to(self.device)
         self.vae_model.eval()
@@ -138,6 +153,7 @@ class Client(PSTrainer):
                 epoch, total_acc_avg))
 
     def aug_classifier_train(self, round, epoch, optimizer, aug_trainloader):
+        # 定义使用数据增强训练分类器的方法。
         self.vae_model.train()
         self.vae_model.training = True
 
@@ -158,9 +174,8 @@ class Client(PSTrainer):
             loss.backward()
             optimizer.step()
 
-
-
     def mosaic(self, batch_data):
+        # 定义生成马赛克数据的方法。
         s = 16
         yc, xc = 16, 16
         if self.args.dataset =='fmnist':
@@ -192,6 +207,7 @@ class Client(PSTrainer):
         return aug_data
 
     def aug_VAE_train(self, round, epoch, optimizer, aug_trainloader):
+        # 定义使用数据增强训练 VAE 的方法。
         self.vae_model.train()
         self.vae_model.training = True
         self.vae_model.requires_grad_(True)
@@ -226,8 +242,8 @@ class Client(PSTrainer):
             aug_loss.backward()
             optimizer.step()
 
-
     def train_whole_process(self, round, epoch, optimizer, trainloader):
+        # 定义训练整个过程的方法。
         self.vae_model.train()
         self.vae_model.training = True
 
@@ -304,8 +320,8 @@ class Client(PSTrainer):
                            len(trainloader), loss_avg.avg, loss_rec.avg, loss_ce.avg, loss_entropy.avg,
                            loss_kl.avg, top1.avg))
 
-
-    def train_vae_model(self,round):
+    def train_vae_model(self, round):
+        # 定义训练 VAE 模型的方法。
         train_transform = transforms.Compose([])
         aug_vae_transform_train = transforms.Compose([])
         if self.args.dataset == 'fmnist':
@@ -348,6 +364,7 @@ class Client(PSTrainer):
         self.vae_model.cpu()
 
     def generate_data_by_vae(self):
+        # 定义使用 VAE 生成数据的方法。
         data = self.train_ori_data
         targets = self.train_ori_targets
         generate_transform = transforms.Compose([])
@@ -380,15 +397,14 @@ class Client(PSTrainer):
                     self.local_share_data2 = torch.cat((self.local_share_data2, rx_noise2))
                     self.local_share_data_y = torch.cat((self.local_share_data_y, y))
 
-
-
-
     # got the classifier parameter from the whole VAE model
     def get_generate_model_classifer_para(self):
+        # 定义获取模型分类器参数的方法。
         return deepcopy(self.vae_model.get_classifier().cpu().state_dict())
 
     # receive data from server
     def receive_global_share_data(self, data1, data2, y):
+        # 定义接收全局共享数据的方法。
         '''
         data: Tensor [num, C, H, W] shared by server collected all clients generated by VAE
         y: Tenosr [num, ] label corrospond to data
@@ -397,9 +413,9 @@ class Client(PSTrainer):
         self.global_share_y = y.cpu()
         self.global_share_data2 = data2.cpu()
 
-
-    def sample_iid_data_from_share_dataset(self,share_data1,share_data2, share_y, share_data_mode = 1):
-        random.seed(random.randint(0,10000))
+    def sample_iid_data_from_share_dataset(self, share_data1, share_data2, share_y, share_data_mode=1):
+        random.seed(random.randint(0, 10000))
+        # 定义从共享数据集中采样 IID 数据的方法。
         if share_data_mode == 1 and share_data1 is None:
             raise RuntimeError("Not get shared data TYPE1")
         if share_data_mode == 2 and share_data2 is None:
@@ -437,9 +453,8 @@ class Client(PSTrainer):
 
         return epoch_data, epoch_label
 
-
     def construct_mix_dataloader(self, share_data1, share_data2, share_y, round):
-
+        # 定义构建混合数据加载器的方法。
         # two dataloader inclue shared data from server and local origin dataloader
         train_ori_transform = transforms.Compose([])
         if self.args.dataset == 'fmnist':
@@ -467,8 +482,8 @@ class Client(PSTrainer):
                                                                   batch_size=32, shuffle=True,
                                                                   drop_last=False)
 
-
     def get_local_share_data(self, noise_mode):  # noise_mode means get RXnoise2 or RXnoise2
+        # 定义获取本地共享数据的方法。
         if self.local_share_data1 is not None and noise_mode == 1:
             return self.local_share_data1, self.local_share_data_y
         elif self.local_share_data2 is not None and noise_mode == 2:
@@ -477,18 +492,19 @@ class Client(PSTrainer):
             raise NotImplementedError
 
     def check_end_epoch(self):
+        # 定义检查周期结束的方法。
         return (
                     self.client_timer.local_outer_iter_idx > 0 and self.client_timer.local_outer_iter_idx % self.local_num_iterations == 0)
 
-
     def move_vae_to_cpu(self):
+        # 定义将 VAE 模型移动到 CPU 的方法。
         if str(next(self.vae_model.parameters()).device) == 'cpu':
             pass
         else:
             self.vae_model = self.vae_model.to('cpu')
 
-
     def move_to_cpu(self):
+        # 定义将模型和优化器移动到 CPU 的方法。
         if str(next(self.trainer.model.parameters()).device) == 'cpu':
             pass
         else:
@@ -499,6 +515,7 @@ class Client(PSTrainer):
             optimizer_to(self.trainer.optimizer, 'cpu')
 
     def move_to_gpu(self, device):
+        # 定义将模型和优化器移动到 GPU 的方法。
         if str(next(self.trainer.model.parameters()).device) == 'cpu':
             self.trainer.model = self.trainer.model.to(device)
         else:
@@ -509,6 +526,7 @@ class Client(PSTrainer):
             optimizer_to(self.trainer.optimizer, device)
 
     def lr_schedule(self, num_iterations, warmup_epochs):
+        # 定义学习率调度的方法。
         epochs = self.client_timer.local_outer_epoch_idx
         iterations = self.client_timer.local_outer_iter_idx
         if self.args.sched == "no":
@@ -534,7 +552,7 @@ class Client(PSTrainer):
         @local_time_info:  using this by local_time_info['local_time_info'] = {client_index:   , local_comm_round_idx:,   local_outer_epoch_idx:,   ...}
         @shared_params_for_simulation: not using in FedAvg
         '''
-
+        # 定义客户端的训练方法。
         if self.args.instantiate_all:
             self.move_to_gpu(self.device)
         named_params, params_indexes, local_sample_number, other_client_params, \
@@ -559,6 +577,7 @@ class Client(PSTrainer):
                            named_params, params_type='model',
                            global_other_params=None,
                            shared_params_for_simulation=None):
+        # 定义抽象方法 algorithm_on_train，它应该在子类中实现具体的训练算法。
         named_params, params_indexes, local_sample_number, other_client_params = None, None, None, None
         return named_params, params_indexes, local_sample_number, other_client_params, shared_params_for_simulation
 

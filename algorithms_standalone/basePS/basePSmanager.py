@@ -1,51 +1,62 @@
 import logging
 from abc import  abstractmethod
-
+# 导入 Python 的日志模块和抽象基类模块。
 import numpy as np
 import torch
-
+# 导入 NumPy 库和 PyTorch 库。
 from model.build import create_model
+# 从模型构建模块导入 create_model 函数。
 from utils.data_utils import (
     get_selected_clients_label_distribution,
     average_named_params
 )
+# 从数据实用工具模块导入 get_selected_clients_label_distribution 和 average_named_params 函数。
 from data_preprocessing.build import load_data
-from data_preprocessing.cifar10.datasets import  Dataset_Personalize_4Tensor
+# 从数据预处理构建模块导入 load_data 函数。
+from data_preprocessing.cifar10.datasets import Dataset_Personalize_4Tensor
+# 从 CIFAR10 数据集模块导入 Dataset_Personalize_4Tensor 类。
 from utils.tool import *
 from model.build import create_model
 from torchvision.datasets import CIFAR10
 import torchvision.transforms as transforms
-
+# 导入工具函数、CIFAR10 数据集类和变换模块。
 
 
 class BasePSManager(object):
+    # 定义了 BasePSManager 抽象基类。
     def __init__(self, device, args):
+        # 构造函数，初始化设备和参数。
         self.device = device
         self.args = args
         # ================================================
         self._setup_datasets()
-
+        # 调用 _setup_datasets 方法来设置数据集。
         self.selected_clients = None
+        # 初始化选中客户端列表。
         self.client_list = []
+        # 初始化客户端列表。
         self.aggregator = None
+        # 初始化聚合器，将在服务器设置中配置。
         # ================================================
         if self.args.instantiate_all:   
             self.number_instantiated_client = self.args.client_num_in_total
+            # 根据参数设置实例化客户端的数量。
         else:
             self.number_instantiated_client = self.args.client_num_per_round
         self._setup_clients()
+        # 调用 _setup_clients 方法来设置客户端。
         # ================================================
         self._setup_server()
+        # 调用 _setup_server 方法来设置服务器。
         # aggregator will be initianized in _setup_server()
         self.comm_round = self.args.comm_round
-
+        # 设置通信轮次。
         # ================================================
         #    logging all acc
         self.test_acc_list = []
+        # 初始化测试准确率列表。
         self._share_data_step()
-
-
-
+        # 定义 _setup_datasets 方法来加载和设置数据集。
 
 # got it
     def _setup_datasets(self):
@@ -58,7 +69,7 @@ class BasePSManager(object):
                                  partition_method=self.args.partition_method, partition_alpha=self.args.partition_alpha,
                                  client_number=self.args.client_num_in_total, batch_size=self.args.batch_size, num_workers=self.args.data_load_num_workers,
                                  data_sampler=self.args.data_sampler,resize=self.args.dataset_load_image_size, augmentation=self.args.dataset_aug)
-
+        # 调用 load_data 函数来加载训练和测试数据。
 
         self.other_params = other_params
         self.train_data_global_dl = train_data_global_dl
@@ -94,28 +105,31 @@ class BasePSManager(object):
         else:
             self.train_cls_local_counts_dict = None
 
-
     def _setup_server(self):
+        # 定义 _setup_server 方法，用于设置服务器端，当前实现为空。
         pass
 
     def _setup_clients(self):
+        # 定义 _setup_clients 方法，用于设置客户端，当前实现为空。
         pass
 
     def _share_data_step(self):
+        # 定义 _share_data_step 方法，用于在 VAE 步骤中共享数据。
         for round in range(self.args.VAE_comm_round):
-
+        # 遍历 VAE 通信轮次。
 # -------------------train VAE for every client----------------#
             logging.info("############Round {} VAE #######################".format(round))
 
 # ----------------- sample client duiring VAE step------------------#
             client_indexes = self.client_sample_for_VAE(round, self.args.client_num_in_total, self.args.VAE_client_num_per_round)
+            # 调用 client_sample_for_VAE 方法来抽样客户端。
             for client_index in client_indexes:
                 client = self.client_list[client_index]
                 client.train_vae_model(round)
 
 #------------------aggregate VAE from sampled client----------------------------------------#
             self._aggregate_sampled_client_vae(client_indexes, round)  # using
-
+            # 调用 _aggregate_sampled_client_vae 方法来聚合客户端 VAE。
 
             self.aggregator.test_on_server_by_vae(round)
         # vae_model = torch.load("vae_model_client100_alpha0.1_datasetcifar100.pth")
@@ -129,6 +143,7 @@ class BasePSManager(object):
         self.aggregator.save_vae_param()
 
     def _aggregate_sampled_client_vae(self,client_indexes, round):
+        # 定义 _aggregate_sampled_client_vae 方法来聚合客户端 VAE。
         model_list = []
         training_data_num = 0
         data_num_list = []
@@ -155,6 +170,7 @@ class BasePSManager(object):
             client.set_vae_para(averaged_vae_params)
 
     def _get_local_shared_data(self):
+        # 定义 _get_local_shared_data 方法来获取本地共享数据。
         # in test step using two types shared data
         for client_idx in range(len(self.client_list)):
             client_data1, data_y = self.client_list[client_idx].get_local_share_data(noise_mode=1)
@@ -169,8 +185,8 @@ class BasePSManager(object):
                 self.global_share_dataset2 = torch.cat((self.global_share_dataset2, client_data2))
                 self.global_share_data_y = torch.cat((self.global_share_data_y, data_y))
 
-
     def test(self):
+        # 定义 test 方法来进行测试。
         logging.info("################test_on_server_for_all_clients : {}".format(
             self.server_timer.global_outer_epoch_idx))
         avg_acc = self.aggregator.test_on_server_for_all_clients(
@@ -178,14 +194,14 @@ class BasePSManager(object):
 
         return avg_acc
 
-
     def get_init_state_kargs(self):
+        # 定义 get_init_state_kargs 方法来获取初始化状态参数。
         self.selected_clients = [i for i in range(self.args.client_num_in_total)]
         init_state_kargs = {}
         return init_state_kargs
 
-
     def get_update_state_kargs(self):
+        # 定义 get_update_state_kargs 方法来获取更新状态参数。
         if self.args.loss_fn in ["LDAMLoss", "FocalLoss", "local_FocalLoss", "local_LDAMLoss"]:
             self.selected_clients_label_distribution = get_selected_clients_label_distribution(
                 self.local_cls_num_list_dict, self.class_num, self.selected_clients, min_limit=1)
@@ -197,6 +213,7 @@ class BasePSManager(object):
 
  # ----------------- sample clinet duiring VAE step------------------#
     def client_sample_for_VAE(self, round_idx, client_num_in_total, client_num_per_round):
+        # 定义 client_sample_for_VAE 方法来抽样 VAE 客户端。
         if client_num_in_total == client_num_per_round:
             client_indexes = [client_index for client_index in range(client_num_in_total)]
         else:
@@ -210,6 +227,7 @@ class BasePSManager(object):
         return client_indexes
 
     def lr_schedule(self, num_iterations, warmup_epochs):
+        # 定义 lr_schedule 方法来设置学习率调度。
         epochs = self.server_timer.global_outer_epoch_idx
         iterations = self.server_timer.global_outer_iter_idx
 
@@ -226,6 +244,7 @@ class BasePSManager(object):
 
     # ==============train clients and add results to aggregator ===s================================
     def train(self):
+        # 定义 train 方法来进行训练。
         for round in range(self.comm_round):
 
             logging.info("################Communication round : {}".format(round))
@@ -280,6 +299,7 @@ class BasePSManager(object):
                         global_other_params,
                         update_state_kargs, 
                         shared_params_for_simulation):
+        # 定义 algorithm_train 抽象方法，用于训练算法。
         pass
 
 

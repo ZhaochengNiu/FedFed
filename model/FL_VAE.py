@@ -1,40 +1,58 @@
 from __future__ import print_function
+# 这行代码从 __future__ 模块导入 print_function，使得在 Python 2.x 版本中可以使用 Python 3.x 版本的打印语法。
 import abc
+# 导入 Python 的抽象基类模块，用于定义抽象方法。
 import os
 import math
-
+# 导入 os 和 math 模块，分别用于操作系统交互和数学计算。
 import numpy as np
 import logging
+# 导入 numpy 用于数值计算，导入 logging 用于日志记录。
 import torch
 import torch.utils.data
 from torch import nn
+# 导入 PyTorch 库及其数据模块，nn 模块包含构建神经网络所需的类。
 from torch.nn import init
 from torch.nn import functional as F
+# 从 torch.nn 导入参数初始化模块 init 和功能模块 functional（别名为 F）。
 from torch.autograd import Variable
+# 导入 Variable 类，用于自动微分，但在较新的 PyTorch 版本中，Variable 已被 torch.Tensor 取代。
 import pdb
 import sys
+# 导入 Python 调试器 pdb 和系统相关参数模块 sys。
 sys.path.append('.')
 sys.path.append('..')
+# 将当前目录和上级目录添加到模块搜索路径中。
 from utils.normalize import *
 from model.cv.others import (ModerateCNNMNIST, ModerateCNN)
 from model.cv.resnet_v2 import ResNet18
 from utils.log_info import *
+# 从 utils 和 model 目录导入一些自定义的模块和函数。
 import torchvision.transforms as transforms
+# 导入 torchvision.transforms 模块，用于图像预处理。
 
 
 def conv3x3(in_planes, out_planes, stride=1):
+    # 定义了一个创建 3x3 卷积层的函数。
     return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride, padding=1, bias=True)
-
+    # 返回一个具有指定输入和输出平面数、卷积核大小、步长和填充的 Conv2d 层。
 
 def conv_init(m):
+    # 定义了一个用于初始化卷积层和批量归一化层的函数。
     classname = m.__class__.__name__
+    # 获取模块的类名。
     if classname.find('Conv') != -1:
+        # 检查类名中是否包含 'Conv'，即是否是卷积层。
         init.xavier_uniform_(m.weight, gain=np.sqrt(2))
+        # 使用 Xavier 均匀初始化方法初始化卷积层的权重。
         init.constant_(m.bias, 0)
+        # 将卷积层的偏置初始化为 0。
     elif classname.find('BatchNorm') != -1:
+        # 检查类名中是否包含 'BatchNorm'，即是否是批量归一化层。
         init.constant_(m.weight, 1)
+        # 将批量归一化层的权重初始化为 1。
         init.constant_(m.bias, 0)
-
+        # 将批量归一化层的偏置初始化为 0。
 
 class wide_basic(nn.Module):
     def __init__(self, in_planes, planes, dropout_rate, stride=1):

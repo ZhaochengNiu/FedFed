@@ -1,8 +1,6 @@
 import copy
 
 
-
-
 class Averager(object):
     """
         Responsible to implement average.
