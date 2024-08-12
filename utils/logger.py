@@ -4,6 +4,7 @@ import time
 import platform
 import logging
 
+
 def logging_config(args, process_id):
     # customize the log format
     while logging.getLogger().handlers:
@@ -30,7 +31,6 @@ def logging_config(args, process_id):
     else:
         raise NotImplementedError
     logging.info(args)
-
 
 
 class Logger(object):
