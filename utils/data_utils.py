@@ -1,27 +1,34 @@
 import logging
 from copy import deepcopy
 from datetime import datetime
-
 import numpy as np
+
+# logging：用于记录日志信息。
+# deepcopy：用于复制对象，创建一个新对象的副本。
+# datetime：用于处理日期和时间。
+# numpy：一个用于科学计算的库。
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+# torch：PyTorch的主模块，用于构建和训练神经网络。
+# torch.nn：包含构建神经网络所需的模块和类。
+# torch.nn.functional：包含一些函数式接口，用于神经网络的前向传播。
+
+
 def get_n_bits(tensor):
+    # 定义一个函数get_n_bits，用于计算张量所需的位数。
     return 8 * tensor.nelement() * tensor.element_size()
-
-
-
+    # 这个函数计算张量的元素总数乘以每个元素的字节数再乘以8，得到所需的位数。
 
 
 """ filter layers """
 
-def filter_parameters(named_parameters=None, named_modules=None,
-                    param_layers_list=[""],
-                    param_layers_length=-1,
-                    param_types=["Conv2d","Linear"]
-                    ):
 
+def filter_parameters(named_parameters=None, named_modules=None, param_layers_list=[""], param_layers_length=-1,
+                      param_types=["Conv2d", "Linear"]):
+    # 定义一个函数filter_parameters，用于筛选模型参数。
     filtered_named_parameters = {}
     filtered_parameters_crt_names = []
     filtered_parameter_shapes = {}
@@ -43,11 +50,14 @@ def filter_parameters(named_parameters=None, named_modules=None,
             filtered_named_parameters[name] = {}
             filtered_parameter_shapes[name] = named_parameters[name].shape
     return filtered_parameters_crt_names, filtered_named_parameters, filtered_parameter_shapes
+    # 这个函数接受模型的命名参数和命名模块，以及一些筛选条件，返回筛选后的参数名称列表、参数字典和参数形状字典。
 
 
 """ scan model with depth """
-def scan_model_with_depth(model, param_types=[]):
 
+
+def scan_model_with_depth(model, param_types=[]):
+    # 定义一个函数scan_model_with_depth，用于扫描模型并记录每层的深度。
     named_parameters = dict(model.named_parameters())
     named_modules = dict(model.named_modules())
 
@@ -67,9 +77,11 @@ def scan_model_with_depth(model, param_types=[]):
         # params_group.append({'params': param, "layer_name": "module_name", "depth": layers_depth[module_name]})
 
     return named_parameters, named_modules, layers_depth
+    # 这个函数遍历模型的命名参数，根据参数类型记录每层的深度，并返回命名参数、命名模块和每层的深度字典。
 
 
 def scan_model_dict_with_depth(model, model_state_dict, param_types=[]):
+    # 定义一个函数scan_model_dict_with_depth，功能与scan_model_with_depth类似，但是处理的是模型的状态字典。
     named_modules = dict(model.named_modules())
 
     layers_depth = {}
@@ -90,9 +102,8 @@ def scan_model_dict_with_depth(model, model_state_dict, param_types=[]):
     return named_modules, layers_depth
 
 
-
-
 def mean_std_online_estimate(existingAggregate, newValue):
+    # 定义两个函数 mean_std_online_estimate 和 retrieve_mean_std，用于在线估计均值和标准差。
     (count, mean, M2) = existingAggregate
     # count += 1
     delta = newValue - mean
@@ -103,6 +114,7 @@ def mean_std_online_estimate(existingAggregate, newValue):
 
 
 def retrieve_mean_std(existingAggregate):
+    # 定义两个函数 mean_std_online_estimate 和 retrieve_mean_std，用于在线估计均值和标准差。
     (count, mean, M2) = existingAggregate
     # logging.info(f"type(count): {type(count)},\
     #     type(mean): {type(mean)},\
@@ -115,7 +127,6 @@ def retrieve_mean_std(existingAggregate):
         return (mean, variance, sampleVariance)
 
 
-
 """some aggregation functions."""
 
 
@@ -123,6 +134,7 @@ def get_params(model, args):
     """
         some features maybe needed in this
     """
+    # 定义一些聚合函数，例如get_params，用于获取模型参数的相关信息。
     params = [
         {
             "params": [value],
@@ -137,6 +149,7 @@ def get_params(model, args):
 
 
 def _get_data(param_groups, idx, is_get_grad):
+    # 定义两个辅助函数 _get_data 和 _get_shape，用于获取参数组中的数据和形状。
     # Define the function to get the data.
     # when we create the param_group, each group only has one param.
     if is_get_grad:
@@ -146,10 +159,12 @@ def _get_data(param_groups, idx, is_get_grad):
 
 
 def _get_shape(param_groups, idx):
+    # 定义两个辅助函数 _get_data 和 _get_shape，用于获取参数组中的数据和形状。
     return param_groups[idx]["param_size"], param_groups[idx]["nelement"]
 
 
 def get_data(param_groups, param_names, is_get_grad=True):
+    # 定义一个函数 get_data，用于根据参数名称获取数据和形状。
     data, shapes = [], []
     for idx, _ in param_names:
         _data = _get_data(param_groups, idx, is_get_grad)
@@ -165,6 +180,7 @@ def get_named_data(model, mode='MODEL', use_cuda=True):
         by using different methods for reducing the communication.
         `model` choices: ['MODEL', 'GRAD', 'MODEL+GRAD'] 
     """
+    # 定义一个函数 get_named_data，用于获取模型的参数或梯度。
     if mode == 'MODEL':
         own_state = model.cpu().state_dict()
         return own_state
@@ -191,8 +207,10 @@ def get_named_data(model, mode='MODEL', use_cuda=True):
 
         return model_and_grad 
 
+
 # 一个Batch_Normalization的信息
 def get_bn_params(prefix, module, use_cuda=True):
+    # 定义一个函数 get_bn_params，用于获取 Batch Normalization 层的参数。
     bn_params = {}
     if use_cuda:
         bn_params[f"{prefix}.weight"] = module.weight
@@ -208,8 +226,10 @@ def get_bn_params(prefix, module, use_cuda=True):
         bn_params[f"{prefix}.num_batches_tracked"] = module.num_batches_tracked
     return bn_params
 
+
 # 找到所有Batch_Normalization
 def get_all_bn_params(model, use_cuda=True):
+    # 定义一个函数get_all_bn_params，用于获取模型中所有Batch Normalization层的参数。
     all_bn_params = {}
     for module_name, module in model.named_modules():
 
@@ -220,15 +240,14 @@ def get_all_bn_params(model, use_cuda=True):
     return all_bn_params
 
 
-def idv_average_named_params(named_params_list, average_weights_dict_list, homo_weights_list=[],
-        inplace=True):
+def idv_average_named_params(named_params_list, average_weights_dict_list, homo_weights_list=[], inplace=True):
     """
         This is a weighted average operation.
         average_weights_dict_list: includes weights with respect to clients. Different for each param.
         inplace:  Whether change the first client's model inplace.
     """
     # logging.info("################aggregate: %d" % len(named_params_list))
-
+    # 定义一个函数 idv_average_named_params，用于对模型参数进行加权平均。
     if inplace:
         (_, averaged_params) = named_params_list[0]
     else:
@@ -268,7 +287,7 @@ def average_named_params(named_params_list, average_weights_dict_list):
         inplace:  Whether change the first client's model inplace.
     """
     # logging.info("################aggregate: %d" % len(named_params_list))
-
+    # 定义一个函数 average_named_params，用于对模型参数进行加权平均，这里的权重是针对所有参数相同的。
     if type(named_params_list[0]) is tuple or type(named_params_list[0]) is list:
         (_, averaged_params) = deepcopy(named_params_list[0])
     else:
@@ -293,6 +312,7 @@ def average_named_params(named_params_list, average_weights_dict_list):
 
 
 def average_tensors(tensors, weights, inplace=False):
+    # 定义一个函数 average_tensors，用于对张量进行加权平均。
     if isinstance(tensors, list) or isinstance(tensors, np.ndarray):
         sum = np.sum(weights)
         if inplace:
@@ -322,7 +342,9 @@ def average_tensors(tensors, weights, inplace=False):
 
 """tensor reshape."""
 
+
 def flatten(tensors, shapes=None, use_cuda=True):
+    # 定义两个函数 flatten 和 unflatten，用于将多个张量展平为一个向量，以及将向量还原为多个张量。
     # init and recover the shapes vec.
     pointers = [0]
     if shapes is not None:
@@ -344,6 +366,7 @@ def flatten(tensors, shapes=None, use_cuda=True):
 
 
 def unflatten(tensors, synced_tensors, shapes):
+    # 定义两个函数 flatten 和 unflatten，用于将多个张量展平为一个向量，以及将向量还原为多个张量。
     pointer = 0
 
     for tensor, shape in zip(tensors, shapes):
@@ -353,7 +376,7 @@ def unflatten(tensors, synced_tensors, shapes):
 
 
 def flatten_model(named_parameters=None, flatten_grad=False, param_list=None):
-    
+    # 定义一个函数 flatten_model，用于将模型的参数展平为一个向量。
     to_concat_w = []
     to_concat_g = []
     # if named_parameters is None:
@@ -373,15 +396,11 @@ def flatten_model(named_parameters=None, flatten_grad=False, param_list=None):
         all_g = None
     return all_w, all_g 
 
-
-
-
-
-
 """auxiliary."""
 
 
 def recover_device(data, device=None):
+    # 定义一些辅助函数，如 recover_device、check_device 和 check_type，用于处理设备和数据类型。
     if device is not None:
         return data.to(device)
     else:
@@ -389,6 +408,7 @@ def recover_device(data, device=None):
 
 
 def check_device(data_src, device=None):
+    # 定义一些辅助函数，如 recover_device、check_device 和 check_type，用于处理设备和数据类型。
     if device is not None:
         if data_src.device is not device:
             return data_src.to(device)
@@ -399,6 +419,7 @@ def check_device(data_src, device=None):
 
 
 def check_type(data_src, type=None):
+    # 定义一些辅助函数，如 recover_device、check_device 和 check_type，用于处理设备和数据类型。
     if type is not None:
         if data_src.type() == type:
             return data_src
@@ -410,6 +431,7 @@ def check_type(data_src, type=None):
 
 def deepcopy_model(conf, model):
     # a dirty hack....
+    # 定义一个函数 deepcopy_model，用于深拷贝模型。
     tmp_model = deepcopy(model)
     if conf.track_model_aggregation:
         for tmp_para, para in zip(tmp_model.parameters(), model.parameters()):
@@ -421,6 +443,7 @@ def get_name_params_div(named_parameters1, named_parameters2=None, scalar=1.0):
     """
         return named_parameters2 - named_parameters1
     """
+    # 定义一个函数 get_name_params_div，用于计算两个模型参数的比值。
     if named_parameters2 is not None:
         common_names = list(set(named_parameters1.keys()).intersection(set(named_parameters2.keys())))
         named_diff_parameters = {}
@@ -439,6 +462,7 @@ def get_name_params_sum(named_parameters1, named_parameters2):
     """
         return named_parameters2 - named_parameters1
     """
+    # 定义一个函数 get_name_params_sum，用于计算两个模型参数的和。
     common_names = list(set(named_parameters1.keys()).intersection(set(named_parameters2.keys())))
     named_diff_parameters = {}
     for key in common_names:
@@ -450,6 +474,7 @@ def get_name_params_difference(named_parameters1, named_parameters2):
     """
         return named_parameters2 - named_parameters1
     """
+    # 定义一个函数 get_name_params_difference，用于计算两个模型参数的差。
     common_names = list(set(named_parameters1.keys()).intersection(set(named_parameters2.keys())))
     named_diff_parameters = {}
     for key in common_names:
@@ -461,6 +486,7 @@ def get_name_params_difference_abs(named_parameters1, named_parameters2):
     """
         return named_parameters2 - named_parameters1
     """
+    # 定义一个函数 get_name_params_difference_abs，用于计算两个模型参数差的绝对值。
     common_names = list(set(named_parameters1.keys()).intersection(set(named_parameters2.keys())))
     named_diff_parameters = {}
     for key in common_names:
@@ -472,6 +498,7 @@ def get_name_params_difference_norm(named_parameters1, named_parameters2, layers
     """
         return named_parameters2 - named_parameters1
     """
+    # 定义一个函数 get_name_params_difference_norm，用于计算两个模型参数差的 Lp 范数。
     common_names = list(set(named_parameters1.keys()).intersection(set(named_parameters2.keys())))
     name_params_difference_norm = {}
     for name in common_names:
@@ -487,8 +514,8 @@ def get_name_params_difference_norm(named_parameters1, named_parameters2, layers
     return name_params_difference_norm
 
 
-
 def get_tensors_norm(tensors_dict, layers_list=None, p=2):
+    # 定义一个函数 get_tensors_norm，用于计算张量的 Lp 范数。
     tensors_norm_dict = {}
 
     try:
@@ -514,9 +541,8 @@ def get_tensors_norm(tensors_dict, layers_list=None, p=2):
     return tensors_norm_dict
 
 
-
-
 def get_div_weights(weights1, weights2=None, scalar=1.0):
+    # 定义一个函数 get_div_weights，用于计算权重的比值。
     """ Produce a direction from 'weights1' to 'weights2'."""
     if weights2 is not None:
         if isinstance(weights1, list) and isinstance(weights2, list):
@@ -534,8 +560,8 @@ def get_div_weights(weights1, weights2=None, scalar=1.0):
             raise NotImplementedError
 
 
-
 def get_sum_weights(weights1, weights2):
+    # 定义一个函数 get_sum_weights，用于计算权重的和。
     """ Produce a direction from 'weights1' to 'weights2'."""
     if isinstance(weights1, list) and isinstance(weights2, list):
         return [w2 + w1 for (w1, w2) in zip(weights1, weights2)]
@@ -544,7 +570,9 @@ def get_sum_weights(weights1, weights2):
     else:
         raise NotImplementedError
 
+
 def get_diff_weights(weights1, weights2):
+    # 定义一个函数 get_diff_weights，用于计算权重的差。
     """ Produce a direction from 'weights1' to 'weights2'."""
     if isinstance(weights1, list) and isinstance(weights2, list):
         return [w2 - w1 for (w1, w2) in zip(weights1, weights2)]
@@ -555,6 +583,7 @@ def get_diff_weights(weights1, weights2):
 
 
 def get_diff_weights_abs(weights1, weights2):
+    # 定义一个函数 get_diff_weights_abs，用于计算权重差的绝对值。
     """ Produce a direction from 'weights1' to 'weights2'."""
     if isinstance(weights1, list) and isinstance(weights2, list):
         return [torch.abs(w2 - w1) for (w1, w2) in zip(weights1, weights2)]
@@ -565,11 +594,14 @@ def get_diff_weights_abs(weights1, weights2):
 
 
 def get_diff_tensor_norm(tensor1, tensor2, p=2):
+    # 定义一个函数 get_diff_tensor_norm，用于计算两个张量的 Lp 范数。
     diff = get_diff_weights(tensor1, tensor2)
     return diff.norm(p=p)
 
 
 def get_diff_tensor_norm_with_dimnorm(tensor1, tensor2, p=2):
+    # 定义一个函数 get_diff_tensor_norm_with_dimnorm 和 get_diff_tensor_norm_with_originnorm，
+    # 用于计算两个张量的Lp范数，并进行归一化处理。
     diff = get_diff_weights(tensor1, tensor2)
     tensor1_norm = tensor1.norm(p=p)
     tensor2_norm = tensor2.norm(p=p)
@@ -578,17 +610,17 @@ def get_diff_tensor_norm_with_dimnorm(tensor1, tensor2, p=2):
     return diff_norm * (1/(dim ** (1/p))), diff_norm / (0.5*tensor1_norm + 0.5*tensor2_norm)
 
 
-
 def get_diff_tensor_norm_with_originnorm(tensor1, tensor2, p=2):
+    # 定义一个函数 get_diff_tensor_norm_with_dimnorm 和 get_diff_tensor_norm_with_originnorm，
+    # 用于计算两个张量的Lp范数，并进行归一化处理。
     diff = get_diff_weights(tensor1, tensor2)
     tensor1_norm = tensor1.norm(p=p)
     tensor2_norm = tensor2.norm(p=p)
     return diff.norm(p=p) / (0.5*tensor1_norm + 0.5*tensor2_norm)
 
 
-
-
 def get_diff_states(states1, states2):
+    # 定义一个函数 get_diff_states，用于计算两个状态的差。
     """ Produce a direction from 'states1' to 'states2'."""
     return [
         v2 - v1
@@ -597,6 +629,7 @@ def get_diff_states(states1, states2):
 
 
 def get_tensor_rotation(tensor1, tensor2):
+    # 定义一个函数 get_tensor_rotation，用于计算两个张量之间的余弦相似度。
     logging.info(tensor1.dtype)
     logging.info(tensor2.dtype)
     # print(tensor1.dtype)
@@ -606,6 +639,7 @@ def get_tensor_rotation(tensor1, tensor2):
 
 
 def get_named_tensors_rotation(named_tensors1, named_tensors2, layers_list=None):
+    # 定义一个函数 get_named_tensors_rotation，用于计算多个张量之间的余弦相似度。
     common_names = list(set(named_tensors1.keys()).intersection(set(named_tensors2.keys())))
     named_tensors_rotation = {}
     for name in common_names:
@@ -621,15 +655,16 @@ def get_named_tensors_rotation(named_tensors1, named_tensors2, layers_list=None)
 
 
 def add_gaussian_noise_named_tensors(named_tensor, mean=0.0, std=0.001):
+    # 定义一个函数 add_gaussian_noise_named_tensors，用于向模型参数添加高斯噪声。
     for name, _ in named_tensor.items():
         noise = torch.normal(mean=torch.ones(named_tensor[name].shape)*mean, std=std)
         named_tensor[name] += noise.to(named_tensor[name].device)
     return named_tensor
 
 
-def calculate_metric_for_tensor(
-    cal_func,
-    tensor1, tensor2=None, LP_list=None):
+def calculate_metric_for_tensor(cal_func, tensor1, tensor2=None, LP_list=None):
+    # 定义一个函数calculate_metric_for_tensor，calculate_metric_for_named_tensors
+    # 和 calculate_metric_for_whole_model，用于计算张量或模型的度量指标。
     if LP_list is None:
         metric_for_named_tensors = cal_func(
             tensor1,
@@ -654,13 +689,9 @@ def calculate_metric_for_tensor(
     return metric_for_named_tensors_with_LP_dict
 
 
-
-
-
-def calculate_metric_for_named_tensors(
-    cal_func,
-    named_tensors1, named_tensors2=None, layers_list=None, LP_list=None):
-
+def calculate_metric_for_named_tensors(cal_func, named_tensors1, named_tensors2=None, layers_list=None, LP_list=None):
+    # 定义一个函数calculate_metric_for_tensor，calculate_metric_for_named_tensors
+    # 和 calculate_metric_for_whole_model，用于计算张量或模型的度量指标。
     if LP_list is None:
         if named_tensors2 is not None:
             metric_for_named_tensors = cal_func(
@@ -700,10 +731,9 @@ def calculate_metric_for_named_tensors(
         return metric_for_named_tensors_with_LP_dict
 
 
-def calculate_metric_for_whole_model(
-    cal_func,
-    named_tensors1, named_tensors2, layers_list=None, LP_list=None):
-
+def calculate_metric_for_whole_model(cal_func, named_tensors1, named_tensors2, layers_list=None, LP_list=None):
+    # 定义一个函数calculate_metric_for_tensor，calculate_metric_for_named_tensors
+    # 和 calculate_metric_for_whole_model，用于计算张量或模型的度量指标。
     common_names = list(set(named_tensors1.keys()).intersection(set(named_tensors2.keys())))
     list_of_tensors1 = []
     list_of_tensors2 = []
@@ -746,11 +776,7 @@ def calculate_metric_for_whole_model(
         return metric_for_named_tensors_with_LP_dict
 
 
-
-def calculate_metric_for_layers(
-    cal_func,
-    layer_params1, layer_params2, layers_list=None, LP_list=None):
-
+def calculate_metric_for_layers(cal_func, layer_params1, layer_params2, layers_list=None, LP_list=None):
     common_names = list(set(layer_params1.keys()).intersection(set(layer_params2.keys())))
     metric_for_named_tensors = {}
     for name in common_names:
@@ -776,8 +802,8 @@ def calculate_metric_for_layers(
     return metric_for_named_tensors
 
 
-
 def calc_client_layer_divergence(global_layer_params, layer_params_list, p=2, rotation=False):
+    # 定义一个函数 calc_client_layer_divergence 和 calc_client_divergence，用于计算客户端模型的层间和整体差异。
     layer_divergence_dimnorm_list = {}
     layer_divergence_originnorm_list = {}
 
@@ -818,10 +844,8 @@ def calc_client_layer_divergence(global_layer_params, layer_params_list, p=2, ro
         layer_divergence_originnorm_list, layer_average_divergence_originnorm
 
 
-
-
-
 def calc_client_divergence(global_model_weights, model_list, p=2, rotation=False):
+    # 定义一个函数 calc_client_layer_divergence 和 calc_client_divergence，用于计算客户端模型的层间和整体差异。
     divergence_list = []
     if rotation:
         for i, model_i in enumerate(model_list):
@@ -851,8 +875,8 @@ def calc_client_divergence(global_model_weights, model_list, p=2, rotation=False
     return divergence_list, average_divergence, max_divergence, min_divergence
 
 
-
 def get_model_difference(model1, model2, p=2):
+    # 定义一个函数 get_model_difference，用于计算两个模型的差异。
     list_of_tensors = []
     for weight1, weight2 in zip(model1.parameters(),
                                 model2.parameters()):
@@ -862,6 +886,7 @@ def get_model_difference(model1, model2, p=2):
 
 
 def list_to_vec(weights):
+    # 定义一个函数list_to_vec，用于将权重列表转换为向量。
     """ Concatnate a numpy list of weights of all layers into one torch vector.
     """
     v = []
@@ -879,6 +904,7 @@ def list_to_vec(weights):
 
 
 def is_float(value):
+    # 定义一个函数 is_float，用于判断一个值是否可以转换为浮点数。
     try:
         float(value)
         return True
@@ -886,10 +912,12 @@ def is_float(value):
         return False
 
 
-
 """gradient related"""
 # TODO
+
+
 def apply_gradient(param_groups, state, apply_grad_to_model=True):
+    # 定义一个函数apply_gradient，用于应用梯度到模型参数上。
     """
         SGD
     """
@@ -929,24 +957,24 @@ def apply_gradient(param_groups, state, apply_grad_to_model=True):
                 p.grad.data = d_p
 
 
-
-
 def clear_grad(m):
+    # 定义一个函数clear_grad，用于清除模型参数的梯度。
     for p in m.parameters():
         if p.grad is not None:
             p.grad.detach_()
             p.grad.zero_()
 
 
-
-
 """dataset related"""
 
+
 def get_local_num_iterations(local_num, batch_size):
+    # 定义一些与数据集相关的函数，如get_local_num_iterations、get_min_num_iterations等，用于获取客户端的数据迭代次数。
     return local_num // batch_size
 
 
 def get_min_num_iterations(train_data_local_num_dict, batch_size):
+    # 定义一些与数据集相关的函数，如get_local_num_iterations、get_min_num_iterations等，用于获取客户端的数据迭代次数。
     """
         This is used to get the minimum iteration of all clients.
         Note: For APSGD and SSPSGD, this function is different,
@@ -1015,8 +1043,8 @@ def get_num_iterations(train_data_local_num_dict, batch_size, type="default", de
     return num_iterations
 
 
-
 def get_train_batch_data(train_local_iter_dict, dataset_name, train_local, batch_size, drop_last=True):
+    # 定义一个函数 get_train_batch_data，用于获取训练数据的批次。
     try:
         train_batch_data = train_local_iter_dict[dataset_name].next()
         # logging.debug("len(train_batch_data[0]): {}".format(len(train_batch_data[0])))
@@ -1039,13 +1067,16 @@ def get_train_batch_data(train_local_iter_dict, dataset_name, train_local, batch
     return train_batch_data
 
 
-
 """ data distribution """
+
+
 def get_num_cls_in_batch(batch_data, cls_idx):
+    # 定义一些与数据分布相关的函数，如 get_num_cls_in_batch、get_label_distribution 等，用于获取数据集中各类别的分布情况。
     return len(batch_data[batch_data == cls_idx])
 
 
 def get_label_distribution(train_data_local_dict, class_num):
+    # 定义一些与数据分布相关的函数，如 get_num_cls_in_batch、get_label_distribution 等，用于获取数据集中各类别的分布情况。
     local_cls_num_list_dict = {}
     total_cls_num = {}
     for label in range(class_num):
@@ -1058,14 +1089,13 @@ def get_label_distribution(train_data_local_dict, class_num):
                 num_cls = get_num_cls_in_batch(labels, cls_idx)
                 local_cls_num_list_dict[client][cls_idx] += num_cls
                 total_cls_num[cls_idx] += num_cls
-# 返回字典形返回不同client中不同类别的个数，保存在local_cls_num_list_dict，不同类别的个数，保存在total_cls_num
-# local_cls_num_list_dict = {client_idx:[labe0_num_client_idx,...,label9_num_client_idx]}
+    # 返回字典形返回不同client中不同类别的个数，保存在local_cls_num_list_dict，不同类别的个数，保存在total_cls_num
+    # local_cls_num_list_dict = {client_idx:[labe0_num_client_idx,...,label9_num_client_idx]}
     return local_cls_num_list_dict, total_cls_num
 
 
-
-
 def get_selected_clients_label_distribution(local_cls_num_list_dict, class_num, client_indexes, min_limit=0):
+    # 定义一个函数 get_selected_clients_label_distribution，用于获取选定客户端的标签分布。
     logging.info(local_cls_num_list_dict)
     selected_clients_label_distribution = [0 for _ in range(class_num)]
     for client_index in client_indexes:
@@ -1080,15 +1110,18 @@ def get_selected_clients_label_distribution(local_cls_num_list_dict, class_num, 
 
 
 def get_per_cls_weights(cls_num_list, beta=0.9999):
+    # 定义一个函数 get_per_cls_weights，用于获取每个类别的权重。
     effective_num = 1.0 - np.power(beta, cls_num_list)
     per_cls_weights = (1.0 - beta) / np.array(effective_num)
     per_cls_weights = per_cls_weights / np.sum(per_cls_weights) * len(cls_num_list)
     # per_cls_weights = torch.FloatTensor(per_cls_weights).cuda(args.gpu)
 
 
-
 """ cpu --- gpu """
+
+
 def optimizer_to(optim, device):
+    # 定义一个函数optimizer_to，用于将优化器转移到指定的设备上。
     for param in optim.state.values():
         # Not sure there are any global tensors in the state dict
         if isinstance(param, torch.Tensor):
