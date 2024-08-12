@@ -9,19 +9,30 @@ from torch.optim.optimizer import Optimizer
 import torchvision
 import math
 __all__ = ['setup_run', 'Logger',  'setup_logger', 'set_random_seed', 'accuracy', 'AverageMeter', 'AdamW', 'mixup_data', 'total_correlation',
-           'get_subclass_label_mapping','ranges']
+           'get_subclass_label_mapping', 'ranges']
+# 这些导入包括操作系统交互、时间处理、路径操作、随机数生成、PyTorch深度学习框架、NumPy科学计算库等。
+# 定义了一个全局变量 __all__，列出了当前模块中可以导入的符号：
+# 这通常用于控制模块的命名空间，使得只有列出的名称可以被导入。
 
-ranges=[151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173
+# 这段代码是一个Python脚本，包含了多个用于机器学习和深度学习任务的工具函数和类。以下是对代码中每个部分的解释：
+# 整体来看，这段代码提供了一套工具和函数，用于辅助深度学习模型的训练、评估和日志记录。
+# 代码中还包含了一些特定于任务的函数，如子类别标签映射和mixup数据增强。
+
+# # 定义了一个数字列表 ranges，可能用于某种范围映射或分类：
+ranges = [151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173
     , 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196,
        197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219,
        220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242,
        243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 256, 257, 258, 259, 260, 261, 262, 263, 264, 265,
-       266, 267, 268,281, 282, 283, 284, 285,32, 30, 31,33, 34, 35, 36, 37,80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90,
-       91, 92, 93, 94, 95, 96, 97, 98, 99, 100,365, 366, 367, 368, 369, 370, 371, 372, 373, 374, 375, 376, 377, 378, 379,
-       380, 381, 382,389, 390, 391, 392, 393, 394, 395, 396, 397,120, 121, 118, 119,300, 301, 302, 303, 304, 305, 306,
+       266, 267, 268,281, 282, 283, 284, 285, 32, 30, 31,33, 34, 35, 36, 37,80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90,
+       91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 365, 366, 367, 368, 369, 370, 371, 372, 373, 374, 375, 376, 377, 378, 379,
+       380, 381, 382,389, 390, 391, 392, 393, 394, 395, 396, 397, 120, 121, 118, 119, 300, 301, 302, 303, 304, 305, 306,
        307, 308, 309, 310, 311, 312, 313, 314, 315, 316, 317, 318, 319]
+# 这个列表包含了一系列数字，可能代表不同的类别索引或某种特定的范围。
+
 
 def subclass_label_mapping(classes, class_to_idx, ranges):
+    # subclass_label_mapping 函数用于创建类别到索引的映射，并根据提供的 ranges 进行子类别的映射：
     # add wildcard
     # range_sets.append(set(range(0, 1002)))
     mapping = {}
@@ -31,25 +42,31 @@ def subclass_label_mapping(classes, class_to_idx, ranges):
                 mapping[class_name] = new_idx
         # assert class_name in mapping
     filtered_classes = list(mapping.keys()).sort()
+    # 该函数接受类别名称、类别到索引的映射和范围列表，返回一个新的过滤后的类别列表和映射。
     return filtered_classes, mapping
 
+
 def get_subclass_label_mapping(ranges):
+    # 这是一个高阶函数，返回另一个函数，用于简化映射过程。
     def label_mapping(classes, class_to_idx):
         return subclass_label_mapping(classes, class_to_idx, ranges=ranges)
     return label_mapping
 
-def setup_run(args):
 
+def setup_run(args):
+    # setup_run 函数用于设置运行环境，可能与分布式训练有关：
     if args.local_rank == 0:
         run = wandb.init(
             config=args, name=args.save_dir.replace("results/", ''), save_code=True,
         )
     else:
         run = None
-
+    # 该函数使用 wandb.init 初始化权重和偏差记录（Weights & Biases）。
     return run
 
+
 def mkdir_if_missing(dirname):
+    # mkdir_if_missing 函数用于在目录不存在时创建目录：
     """Create dirname if it is missing."""
     if not osp.exists(dirname):
         try:
@@ -57,13 +74,18 @@ def mkdir_if_missing(dirname):
         except OSError as e:
             if e.errno != errno.EEXIST:
                 raise
+            # 该函数接受一个目录名，如果该目录不存在，则创建它。
+
 
 def set_random_seed(seed):
+    # set_random_seed 函数用于设置随机种子以确保结果的可重复性：
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
+    # 该函数设置了Python内置随机库、NumPy和PyTorch的随机种子。
+
 
 class Logger:
     """Write console output to external text file.
@@ -80,7 +102,7 @@ class Logger:
        >>> log_name = 'train.log'
        >>> sys.stdout = Logger(osp.join(save_dir, log_name))
     """
-
+    # 这个类重定向了 sys.stdout，使得所有的打印输出也可以被写入到一个文件中。
     def __init__(self, fpath=None):
         self.console = sys.stdout
         self.file = None
@@ -115,6 +137,7 @@ class Logger:
 
 
 def setup_logger(output=None):
+    # 该函数接受一个输出文件路径，初始化 Logger 并设置 sys.stdout。
     if output is None:
         return
 
@@ -129,8 +152,9 @@ def setup_logger(output=None):
 
     sys.stdout = Logger(fpath)
 
-def accuracy(output, target, topk=(1,)):
 
+def accuracy(output, target, topk=(1,)):
+    # accuracy 函数用于计算模型预测的准确率：
     maxk = max(topk)
     batch_size = target.size(0)
 
@@ -156,6 +180,8 @@ def accuracy(output, target, topk=(1,)):
         return res[0],class_acc   # res[0] 保存top1的acc，以此类推，topk=(1,5)则res[1]中保存tok[1]即top5的acc
     else:
         return (res[0], res[1], correct[0], pred[0], class_acc)
+    # 该函数计算模型输出和目标标签之间的top-k准确率，并返回每个类别的准确率。
+
 
 class AdamW(Optimizer):
     """Implements Adam algorithm.
@@ -176,7 +202,7 @@ class AdamW(Optimizer):
     .. _On the Convergence of Adam and Beyond:
         https://openreview.net/forum?id=ryQu7f-RZ
     """
-
+    # AdamW 类是PyTorch优化器的扩展，实现了Adam算法，并添加了权重衰减支持：
     def __init__(self, params, lr=1e-3, betas=(0.9, 0.999), eps=1e-8,
                  weight_decay=0, amsgrad=False):
         if not 0.0 <= lr:
@@ -255,14 +281,15 @@ class AdamW(Optimizer):
 
                 # p.data.addcdiv_(-step_size, exp_avg, denom)
                 p.data.add_(-step_size, torch.mul(p.data, group['weight_decay']).addcdiv_(1, exp_avg, denom))
-
         return loss
+        # 这个类继承自 torch.optim.Optimizer，提供了Adam优化算法的实现，并支持权重衰减（L2惩罚）。
+
 
 class AverageMeter(object):
     """Computes and stores the average and current value
        Imported from https://github.com/pytorch/examples/blob/master/imagenet/main.py#L247-L262
     """
-
+    # AverageMeter 类用于计算和存储平均值和当前值：
     def __init__(self):
         self.reset()
 
@@ -277,6 +304,8 @@ class AverageMeter(object):
         self.sum += val * n
         self.count += n
         self.avg = self.sum / self.count
+        # 这个类提供了一个工具来跟踪一系列数值的平均值和当前值。
+
 
 def mixup_data(x, y, alpha=1.0, use_cuda=False):
     '''
@@ -287,6 +316,7 @@ def mixup_data(x, y, alpha=1.0, use_cuda=False):
 
     returns：
     	mixed inputs, pairs of targets, and lamda'''
+    # mixup_data 函数用于实现数据增强技术 "mixup"：
     if alpha > 0:
         lam = np.random.beta(alpha, alpha)
     else:
@@ -301,13 +331,17 @@ def mixup_data(x, y, alpha=1.0, use_cuda=False):
     mixed_x = lam * x + (1 - lam) * x[index, :]
     y_a, y_b = y, y[index]
     return mixed_x, y_a, y_b, lam, index
+    # 该函数接受一批数据和标签，以及一个参数 alpha 用于控制mixup的强度。
+
 
 def gaussian_log_density(samples, mean, log_var):
+    # 该函数用于估计给定均值和对数方差的高斯分布的对数概率密度。
     pi = torch.tensor(math.pi)
     normalization = torch.log(2. * pi)
     inv_sigma = torch.exp(-log_var)
     tmp = (samples - mean)
     return -0.5 * (tmp * tmp * inv_sigma + log_var + normalization)
+
 
 def total_correlation(z, z_mean, z_logvar):
     """Estimate of total correlation on a batch.
@@ -325,6 +359,7 @@ def total_correlation(z, z_mean, z_logvar):
     Returns:
       Total correlation estimated on a batch.
     """
+    # 该函数用于估计一批数据的总相关性，可能用于评估生成模型或变分自编码器的性能。
     # Compute log(q(z(x_j)|x_i)) for every sample in the batch, which is a
     # tensor of size [batch_size, batch_size, num_latents]. In the following
     # comments, [batch_size, batch_size, num_latents] are indexed by [j, i, l].

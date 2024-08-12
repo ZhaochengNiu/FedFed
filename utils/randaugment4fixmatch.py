@@ -3,6 +3,7 @@
 # https://github.com/google-research/fixmatch/blob/master/third_party/auto_augment/augmentations.py
 # https://github.com/google-research/fixmatch/blob/master/libml/ctaugment.py
 # https://github.com/uoguelph-mlrg/Cutout
+# 这段注释说明代码是基于一些开源项目修改而来的，这些项目提供了图像增强的方法。
 import logging
 import random
 
@@ -14,10 +15,17 @@ import PIL.ImageDraw
 from PIL import Image
 import torch
 import torchvision.transforms as T
+# 导入所需的 Python 模块，包括日志记录库、随机数生成器、NumPy、PIL 库用于图像处理，以及 PyTorch。
+
+# 这段代码是一个 Python 脚本，用于图像增强，特别是针对卷积神经网络（CNN）训练时的数据增强。
+# 代码中定义了一系列图像变换操作，并提供了几种随机增强策略的实现。以下是对代码中每个部分的详细解释：
+# 整体来看，这段代码提供了多种图像增强技术，这些技术可以提高 CNN 训练时的模型鲁棒性，减少过拟合。
+# 代码中的类和函数可以很容易地集成到 PyTorch 的数据加载和预处理流程中。
 
 logger = logging.getLogger(__name__)
-
+# 创建一个日志记录器实例。
 PARAMETER_MAX = 10
+# 定义一个全局变量 PARAMETER_MAX，用于标准化参数值。
 
 
 def AutoContrast(img, **kwarg):
@@ -140,15 +148,18 @@ def TranslateY(img, v, max_v, bias=0):
 
 
 def _float_parameter(v, max_v):
+    # 辅助函数，将参数 v 标准化到 0 到 max_v 范围内。
     return float(v) * max_v / PARAMETER_MAX
 
 
 def _int_parameter(v, max_v):
+    # 辅助函数，将参数 v 转换为整数，并标准化到 0 到 max_v 范围内。
     return int(v * max_v / PARAMETER_MAX)
 
 
 def fixmatch_augment_pool():
     # FixMatch paper
+    # 定义了一个名为 fixmatch_augment_pool 的函数，返回一组图像增强操作。
     augs = [(AutoContrast, None, None),
             (Brightness, 0.9, 0.05),
             (Color, 0.9, 0.05),
@@ -169,6 +180,7 @@ def fixmatch_augment_pool():
 
 def my_augment_pool():
     # Test
+    # 定义了一个名为 my_augment_pool 的函数，返回另一组自定义的图像增强操作。
     augs = [(AutoContrast, None, None),
             (Brightness, 1.8, 0.1),
             (Color, 1.8, 0.1),
@@ -189,6 +201,7 @@ def my_augment_pool():
 
 
 class RandAugmentPC(object):
+    # 定义了一个名为 RandAugmentPC 的类，实现了 RandAugment 增强策略，并在每次变换后应用了固定大小的裁剪。
     def __init__(self, n, m):
         assert n >= 1
         assert 1 <= m <= 10
@@ -207,6 +220,7 @@ class RandAugmentPC(object):
 
 
 class RandAugmentMC(object):
+    # 定义了一个名为 RandAugmentMC 的类，这是另一种 RandAugment 增强策略的实现。
     def __init__(self, n, m):
         assert n >= 1
         assert 1 <= m <= 10
@@ -223,7 +237,9 @@ class RandAugmentMC(object):
         img = CutoutAbs(img, 16)
         return img
 
+
 class Aug_Cutout(object):
+    # 定义了一个名为 Aug_Cutout 的类，它在图像上应用 Cutout 增强。
     def __init__(self):
         self.cutout = Cutout(n_holes=1, length=5)
 
@@ -232,8 +248,8 @@ class Aug_Cutout(object):
         return img
 
 
-
 class RandAugment_no_CutOut(object):
+    # 定义了一个名为 RandAugment_no_CutOut 的类，实现了不包含 Cutout 增强的 RandAugment 策略。
     def __init__(self, n, m):
         assert n >= 1
         assert 1 <= m <= 10
@@ -250,6 +266,7 @@ class RandAugment_no_CutOut(object):
                 img = op(img, v=v, max_v=max_v, bias=bias)
         return img
 
+
 # https://github.com/uoguelph-mlrg/Cutout
 class Cutout(object):
     """Randomly mask out one or more patches from an image.
@@ -257,6 +274,7 @@ class Cutout(object):
         n_holes (int): Number of patches to cut out of each image.
         length (int): The length (in pixels) of each square patch.
     """
+    # 定义了一个名为 Cutout 的类，它可以从图像中随机遮盖出一些区域，这些区域的数量和大小是可配置的。
     def __init__(self, n_holes, length):
         self.n_holes = n_holes
         self.length = length
