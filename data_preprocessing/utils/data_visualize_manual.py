@@ -4,16 +4,22 @@ import matplotlib.pyplot as plt
 import sys
 import os
 import argparse
-
+# 导入了matplotlib、numpy、sys、os、argparse等模块，用于绘图、数学运算、系统交互等。
 from matplotlib import colors
 from matplotlib.ticker import PercentFormatter
 from collections import OrderedDict
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), "../../")))
+# 将当前目录的上上级目录添加到系统路径，以便能够导入相关模块。
 
+# 这段代码是一个Python脚本，用于生成和显示一个热力图（heatmap），通常用于展示数据的分布情况。
+# 热力图在这里被用来展示不同客户端（clients）拥有的不同类别（classes）的数据样本数量。以下是对代码中每个部分的详细解释：
+# 整体来看，这段代码提供了一个从命令行参数生成特定数据分布的热力图，并将其显示和保存的功能。
+# 代码中使用了matplotlib库来生成热力图，并使用argparse库来解析命令行参数。
 
 
 def update_fontsize(ax, fontsize=12.):
+    # 这个函数接受一个 matplotlib 轴对象 ax 和字体大小 fontsize，更新轴上的标题、标签等的字体大小。
     for item in ([ax.title, ax.xaxis.label, ax.yaxis.label] +
                              ax.get_xticklabels() + ax.get_yticklabels()):
                 item.set_fontsize(fontsize)
@@ -23,6 +29,7 @@ def update_fontsize(ax, fontsize=12.):
 def heatmap(data, row_ticks_to_show, col_ticks_to_show, 
             row_labels, col_labels, ax=None, fontsize=15,
             cbar_kw={}, cbarlabel="", **kwargs):
+    # 这个函数接受数据矩阵、行列标签、轴对象、字体大小等参数，生成一个热力图，并添加颜色条（colorbar）。
     """
     Create a heatmap from a numpy array and two lists of labels.
     Parameters
@@ -93,6 +100,7 @@ def heatmap(data, row_ticks_to_show, col_ticks_to_show,
 def annotate_heatmap(im, data=None, valfmt="{x:.2f}",
                      textcolors=("black", "white"),
                      threshold=None, **textkw):
+    # 这个函数用于在热力图上添加注释文本，显示数据值。
     """
     A function to annotate a heatmap.
     We're not using this for our graphs
@@ -161,9 +169,8 @@ if __name__ == "__main__":
     parser.add_argument('--client_num_in_total', type=int, default=10,
                         help='Number of total clients')
 
-
     args = parser.parse_args()
-
+    # 使用 argparse 库解析命令行参数，获取分区方法、α值、主导类别数量、尾部类别数量等信息。
     alpha = args.alpha
     client_num = args.client_num_in_total
     class_num = 10
@@ -173,8 +180,9 @@ if __name__ == "__main__":
     tail_num = args.tail_num
     classes = list(range(10))
     clients = list(range(client_num))
-    train_data_cls_counts = {}
 
+    # 根据提供的参数，生成一个字典，其中包含每个客户端拥有的各类别的数据样本数量。
+    train_data_cls_counts = {}
     for i in clients:
         train_data_cls_counts[i] = {}
         for class_j in classes:
@@ -198,6 +206,7 @@ if __name__ == "__main__":
     # clients = list(range(client_num))
 
     # Sort the class key values to easily convert to array while preserving order
+    # 将客户端数据类别统计信息转换为numpy数组，并转置，以便用于生成热力图。
     samples = []
     for key in train_data_cls_counts:
         od = OrderedDict(sorted(train_data_cls_counts[key].items()))
@@ -205,22 +214,20 @@ if __name__ == "__main__":
     data = np.array(samples)
     transpose_data = data.T
 
+    # 使用matplotlib生成热力图，并使用show函数显示。
     fig, ax = plt.subplots()
-
     print(transpose_data, classes, clients)
-
-
     fontsize = 18
     im, cbar = heatmap(transpose_data, classes, clients, classes, clients, ax=ax,
                        fontsize=fontsize, cmap="YlGn", cbarlabel="samples")
     annotate_heatmap(im, valfmt="{x:d}", size=7, threshold=20,
                     textcolors=("red", "black"))
-
     fig.set_figheight(5)
     fig.set_figwidth(7)
     fig.tight_layout()
-
     plt.show()
+
     plt.savefig('Dom' + str(dominant_num) + '_tail' + str(tail_num) + \
         '_classes' + str(class_num) + '_clients' + str(client_num) + 'manul.pdf')
+    # 将生成的热力图保存为PDF文件。
 

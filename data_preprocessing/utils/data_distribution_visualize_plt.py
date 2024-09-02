@@ -5,7 +5,7 @@ import sys
 import os
 import random
 import argparse
-
+# 导入了matplotlib、numpy、sys、os、random、argparse等模块。
 from matplotlib import colors
 from matplotlib.ticker import PercentFormatter
 from collections import OrderedDict
@@ -14,16 +14,22 @@ import torch
 
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), "../../")))
-
+# 将当前目录的上上级目录添加到系统路径。
 # from data_preprocessing.pascal_voc_augmented.data_loader import partition_data as partition_pascal
 from data_preprocessing.cifar100.data_loader import partition_data as partition_cifar100
 from data_preprocessing.cifar10.data_loader import partition_data as partition_cifar10
 from data_preprocessing.FashionMNIST.data_loader import partition_data as partition_fmnist
 from data_preprocessing.MNIST.data_loader import partition_data as partition_mnist
+# 从指定的数据预处理模块导入partition_data函数。
 
+# 这段代码是一个Python脚本，用于根据给定的数据集和参数生成热力图，以可视化数据的分布情况。以下是对代码中每个部分的详细解释：
+# 整体来看，这段代码提供了一个可视化工具，用于展示不同客户端在非IID数据划分下的数据类别分布情况。
+# 通过命令行参数，用户可以指定数据集、数据目录、客户端数量、划分方法和α值，脚本将生成相应的热力图并显示和保存。
+# 代码中使用了matplotlib库来生成热力图，并使用argparse库来解析命令行参数。
 
 
 def update_fontsize(ax, fontsize=12.):
+    # 更新matplotlib轴对象的字体大小。
     for item in ([ax.title, ax.xaxis.label, ax.yaxis.label] +
                              ax.get_xticklabels() + ax.get_yticklabels()):
                 item.set_fontsize(fontsize)
@@ -33,6 +39,7 @@ def update_fontsize(ax, fontsize=12.):
 def heatmap(data, row_ticks_to_show, col_ticks_to_show, 
             row_labels, col_labels, ax=None, fontsize=15,
             cbar_kw={}, cbarlabel="", **kwargs):
+    # 这个函数接受数据矩阵、行列标签、轴对象、字体大小等参数，生成一个热力图，并添加颜色条（colorbar）。
     """
     Create a heatmap from a numpy array and two lists of labels.
     Parameters
@@ -107,10 +114,10 @@ def heatmap(data, row_ticks_to_show, col_ticks_to_show,
     return im, cbar
 
 
-
 def annotate_heatmap(im, data=None, valfmt="{x:.2f}",
                      textcolors=("black", "white"),
                      threshold=None, dataset='cifar10', **textkw):
+    # 这个函数用于在热力图上添加注释文本，显示数据值。
     """
     A function to annotate a heatmap.
     We're not using this for our graphs
@@ -185,7 +192,7 @@ if __name__ == "__main__":
     parser.add_argument('--dataset', type=str, default='pascal_voc', help="Name of dataset")
     parser.add_argument('--client_num_in_total', type=int, default=100,
                         help='Number of total clients')
-
+    # 使用argparse库解析命令行参数，获取数据集名称、数据目录、客户端数量、划分方法、α值等。
     seed = 0
 
     random.seed(seed)
@@ -194,6 +201,7 @@ if __name__ == "__main__":
     torch.cuda.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.deterministic =True
+    # 设置随机种子以确保结果的可重复性。
 
     args = parser.parse_args()
 
@@ -203,6 +211,7 @@ if __name__ == "__main__":
     # classes = list(range(1, 20 + 1, 1))
 
     data_dir = args.data_dir
+    # 根据数据集名称调用对应的数据划分函数。
     if args.dataset == 'pascal_voc':
         net_data_idx_map, train_data_cls_counts = partition_pascal(data_dir, partition_method, client_num, alpha, 513)
     elif args.dataset == 'cifar100':
@@ -232,8 +241,8 @@ if __name__ == "__main__":
     else:
         raise NotImplementedError
 
-
     print(train_data_cls_counts, classes)
+    # 打印每个客户端拥有的各类别的数据样本数量。
     # Adding missing classes to list
     for key in train_data_cls_counts:
         if len(classes) != len(train_data_cls_counts[key]):
@@ -245,8 +254,9 @@ if __name__ == "__main__":
                 train_data_cls_counts[key][e] = 0
 
     classes = train_data_cls_counts[0].keys()
-    clients = list(range(client_num))
 
+    # 从划分结果中提取客户端的数据，并转换为numpy数组用于可视化。
+    clients = list(range(client_num))
     # Sort the class key values to easily convert to array while preserving order
     samples = []
     for key in train_data_cls_counts:
@@ -255,8 +265,8 @@ if __name__ == "__main__":
     data = np.array(samples)
     transpose_data = data.T
 
+    # 使用matplotlib生成热力图，并使用show函数显示。
     fig, ax = plt.subplots()
-
     print(transpose_data, classes, clients)
     # if args.dataset == 'cifar100':
     #     classes = list(range(0, 100, 20))
@@ -297,14 +307,13 @@ if __name__ == "__main__":
                        fontsize=fontsize, cmap="YlGn", cbarlabel="samples")
     annotate_heatmap(im, valfmt="{x:d}", size=7, threshold=5000,
                     textcolors=("red", "white"), dataset=args.dataset, fontsize=int(fontsize*0.6))
-
-
     # if client_num == len(classes):
     fig.set_figheight(5)
     fig.set_figwidth(7)
 
     fig.tight_layout()
 
+    # 显示图表，并将其保存为PDF文件。
     plt.show()
     plt.savefig(args.dataset + '_partition' + str(partition_method) + \
         '_alpha' + str(alpha) + '_DirMin' + str(args.dirichlet_min_p) + \

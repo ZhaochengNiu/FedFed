@@ -31,6 +31,9 @@ from utils.log_info import *
 import torchvision.transforms as transforms
 # 导入 torchvision.transforms 模块，用于图像预处理。
 
+# 整体来看，这段代码提供了构建和使用宽残差网络和条件变分自编码器的完整框架。代码中使用了模块化设计，使得模型的各个部分可以灵活地组合和重用。
+# 此外，代码还考虑了模型的可扩展性和可维护性，通过定义抽象基类和实现具体的模型类来实现。
+
 
 def conv3x3(in_planes, out_planes, stride=1):
     # 定义了一个创建 3x3 卷积层的函数。
@@ -54,7 +57,10 @@ def conv_init(m):
         init.constant_(m.bias, 0)
         # 将批量归一化层的偏置初始化为 0。
 
+
 class wide_basic(nn.Module):
+    # 定义wide_basic类，这是一个卷积神经网络的构建块，包含两个卷积层和两个批量归一化层，并在最后添加了一个shortcut连接：
+    # 这个类继承自nn.Module，是构建Wide ResNet的基本单元。
     def __init__(self, in_planes, planes, dropout_rate, stride=1):
         super(wide_basic, self).__init__()
         self.bn1 = nn.BatchNorm2d(in_planes)
@@ -78,6 +84,8 @@ class wide_basic(nn.Module):
 
 
 class Wide_ResNet(nn.Module):
+    # 定义 Wide_ResNet 类，这是一个更高级的网络结构，由多个 wide_basic 单元组成：
+    # 这个类同样继承自nn.Module，用于构建宽残差网络。
     def __init__(self, depth, widen_factor, dropout_rate, num_classes, norm=False):  # usually Wide_ResNet(28,10,0.3,10)
         super(Wide_ResNet, self).__init__()
         self.in_planes = 16
@@ -99,6 +107,8 @@ class Wide_ResNet(nn.Module):
         self.norm = norm
 
     def _wide_layer(self, block, planes, num_blocks, dropout_rate, stride):
+        # 定义_wide_layer方法，用于创建多个wide_basic层的序列：
+        # 这个方法是Wide_ResNet类的一个私有方法，用于重复创建wide_basic层。
         strides = [stride] + [1]*(int(num_blocks)-1)
         layers = []
 
@@ -124,6 +134,8 @@ class Wide_ResNet(nn.Module):
 
 
 class ResBlock(nn.Module):
+    # 定义ResBlock类，这是一个残差块，包含两个卷积层和一个可选的批量归一化层：
+    # 这个类继承自nn.Module，用于构建残差网络中的残差块。
     def __init__(self, in_channels, out_channels, mid_channels=None, bn=False):
         super(ResBlock, self).__init__()
 
@@ -144,6 +156,8 @@ class ResBlock(nn.Module):
 
 
 class AbstractAutoEncoder(nn.Module):
+    # 定义AbstractAutoEncoder类，这是一个抽象基类，用于定义自编码器的接口：
+    # 这个类继承自 nn.Module 和 ABCMeta，定义了自编码器必须实现的抽象方法。
     __metaclass__ = abc.ABCMeta
 
     @abc.abstractmethod
@@ -176,7 +190,11 @@ class AbstractAutoEncoder(nn.Module):
 
 
 class FL_CVAE_cifar(AbstractAutoEncoder):
+    # 定义FL_CVAE_cifar类，这是一个条件变分自编码器的实现，用于图像的无监督学习：
+    # 这个类继承自 AbstractAutoEncoder，实现了条件变分自编码器。
+    # 在 FL_CVAE_cifar 类中，定义了模型的构造函数，初始化了编码器、解码器和分类器（如果需要）：
     def __init__(self, args, d, z, device, with_classifier=True, **kwargs):
+        # 构造函数接收多个参数，包括模型参数、维度、设备和是否包含分类器。
         super(FL_CVAE_cifar, self).__init__()
 
         # if args.dataset == 'fmnist':
@@ -233,7 +251,9 @@ class FL_CVAE_cifar(AbstractAutoEncoder):
         if self.with_classifier:
             self.classifier = ResNet18(args=args, num_classes=args.num_classes, image_size=32,model_input_channels=args.model_input_channels)
 
-    def _add_noise(self, data, size, mean, std): #
+    def _add_noise(self, data, size, mean, std):
+        # 定义 _add_noise 方法，用于向数据添加噪声：
+        # 这个方法根据指定的噪声类型（高斯或拉普拉斯）向数据添加噪声。
         if self.noise_type == 'Gaussian':
             rand = torch.normal(mean=mean, std=std, size=size).to(self.device)
         if self.noise_type == 'Laplace':
@@ -242,11 +262,15 @@ class FL_CVAE_cifar(AbstractAutoEncoder):
         return data
 
     def encode(self, x):
+        # 定义encode方法，用于将输入数据编码为潜在空间的表示：
+        # 这个方法执行编码操作，返回编码后的数据和两个全连接层的输出。
         h = self.encoder(x)
         h1 = h.view(-1, self.d * self.f ** 2)
         return h, self.fc11(h1), self.fc12(h1)
 
     def reparameterize(self, mu, logvar):
+        # 定义 reparameterize 方法，用于变分推断中的重参数化技巧：
+        # 这个方法用于采样潜在空间的表示，实现重参数化技巧。
         if self.training:
             std = logvar.mul(0.5).exp_()
             eps = std.new(std.size()).normal_()
@@ -255,11 +279,15 @@ class FL_CVAE_cifar(AbstractAutoEncoder):
              return mu
 
     def decode(self, z):
+        # 定义decode方法，用于将潜在空间的表示解码为可观测数据：
+        # 这个方法执行解码操作，返回解码后的数据。
         z = z.view(-1, self.d, self.f, self.f)
         h3 = self.decoder(z)
         return torch.tanh(h3)
 
     def forward(self, x):
+        # 定义forward方法，用于执行模型的前向传播：
+        # 这个方法执行模型的前向传播，返回重建的图像和潜在空间的表示。
         x_no_normalize = x
         bn_x = x
         x = self.encoder_former(bn_x)
@@ -283,6 +311,8 @@ class FL_CVAE_cifar(AbstractAutoEncoder):
             return xi
 
     def classifier_test(self, data):
+        # 定义classifier_test和get_classifier方法，用于获取和测试分类器：
+        # 这些方法用于获取分类器并执行分类操作。
         if self.with_classifier:
             out = self.classifier(data)
             return out

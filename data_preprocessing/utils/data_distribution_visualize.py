@@ -6,15 +6,20 @@ import sys
 import os
 import random
 import argparse
-
+# 导入了matplotlib、numpy、seaborn、sys、os、random、argparse等模块。
 from matplotlib import colors
 from matplotlib.ticker import PercentFormatter
 from collections import OrderedDict
 
 import torch
 
+# 这段代码是一个Python脚本，用于可视化不同数据集划分方法下客户端的数据类别分布，并保存为PDF文件。以下是对代码中每个部分的详细解释：
+# 整体来看，这段代码提供了一个可视化工具，用于展示不同客户端在非IID数据划分下的数据类别分布情况。
+# 通过命令行参数，用户可以指定数据集、数据目录、客户端数量、划分方法和α值，脚本将生成相应的热力图并显示和保存。
+# 代码中使用了matplotlib和seaborn库来生成热力图，并使用argparse库来解析命令行参数。
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), "../../")))
+# 将当前目录的上上级目录添加到系统路径。
 
 # from data_preprocessing.pascal_voc_augmented.data_loader import partition_data as partition_pascal
 # from data_preprocessing.cifar100.data_loader import partition_data as partition_cifar100
@@ -24,7 +29,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), "../../")))
 # from data_preprocessing.TinyImageNet.data_loader import partition_data as partition_Tiny_ImageNet_200
 
 from data_preprocessing.build import load_data
-
+# 从指定的数据预处理模块导入load_data函数和其他数据加载器。
 
 from data_preprocessing.loader import Data_Loader
 from data_preprocessing.loader_shakespeare import Shakespeare_Data_Loader
@@ -37,6 +42,7 @@ from data_preprocessing.FederatedEMNIST.data_loader import load_partition_data_f
 
 
 def update_fontsize(ax, fontsize=12.):
+    # 更新matplotlib轴对象的字体大小。
     for item in ([ax.title, ax.xaxis.label, ax.yaxis.label] +
                              ax.get_xticklabels() + ax.get_yticklabels()):
                 item.set_fontsize(fontsize)
@@ -61,15 +67,15 @@ if __name__ == "__main__":
                         help='Number of total clients')
 
     args = parser.parse_args()
-
+    # 使用argparse库解析命令行参数，获取数据集名称、数据目录、客户端数量、划分方法、α值等。
     seed = args.seed
-
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
-    torch.backends.cudnn.deterministic =True
+    torch.backends.cudnn.deterministic = True
+    # 设置随机种子以确保结果的可重复性。
 
     partition_method = args.partition_method
     alpha = args.alpha
@@ -77,6 +83,7 @@ if __name__ == "__main__":
     # classes = list(range(1, 20 + 1, 1))
 
     data_dir = args.data_dir
+    # 根据数据集名称调用对应的数据划分函数。
     if args.dataset == 'pascal_voc':
         net_data_idx_map, train_data_cls_counts = partition_pascal(data_dir, partition_method, client_num, alpha, 513)
     # elif args.dataset == 'cifar100':
@@ -87,7 +94,7 @@ if __name__ == "__main__":
     #     classes = list(range(10))
     #     _, _, _, _, net_data_idx_map, train_data_cls_counts, cifar10_train_ds, cifar10_test_ds = partition_cifar10(
     #         'cifar10', args.data_dir, partition_method, args.client_num_in_total, args.alpha, args)
-        # print("!!!!!!", train_data_cls_counts)
+    # print("!!!!!!", train_data_cls_counts)
     elif args.dataset == 'gld23k':
         classes = list(range(203))
         client_num = 233
@@ -105,7 +112,7 @@ if __name__ == "__main__":
     #         'mnist', args.data_dir, partition_method, args.client_num_in_total, args.alpha, args)
     elif args.dataset == 'Tiny-ImageNet-200':
         classes = list(range(200))
-        _, _, _, _, net_data_idx_map, train_data_cls_counts, cifar100_train_ds, cifar100_test_ds= partition_Tiny_ImageNet_200(
+        _, _, _, _, net_data_idx_map, train_data_cls_counts, cifar100_train_ds, cifar100_test_ds = partition_Tiny_ImageNet_200(
             'Tiny-ImageNet-200', args.data_dir, partition_method, args.client_num_in_total, args.alpha, args)
     elif args.dataset in ['Tiny-ImageNet-200', 'cifar10', 'cifar100', 'mnist', 'fmnist']:
         data_loader = Data_Loader(args, process_id=0, mode="standalone", task="federated", data_efficient_load=True, dirichlet_balance=False, dirichlet_min_p=None,
@@ -124,8 +131,7 @@ if __name__ == "__main__":
     else:
         raise NotImplementedError
 
-
-
+    # 打印每个客户端拥有的各类别的数据样本数量。
     print(train_data_cls_counts, classes)
     print("============================================")
     all_data = sum([len(value) for value in net_data_idx_map.values()])
@@ -143,8 +149,8 @@ if __name__ == "__main__":
             for e in add_classes:
                 train_data_cls_counts[key][e] = 0
 
+    # 从划分结果中提取客户端的数据，并转换为numpy数组用于可视化。
     clients = list(range(client_num))
-
     # Sort the class key values to easily convert to array while preserving order
     samples = []
     for key in train_data_cls_counts:
@@ -165,10 +171,10 @@ if __name__ == "__main__":
     #     num_classes = len(classes)
     #     for i in range(num_classes):
     #         classes.append(i+num_classes)
-
     data = np.array(samples)
     transpose_data = data.T
 
+    # 使用seaborn库的heatmap函数绘制热力图。
     fig, ax = plt.subplots()
 
     print(transpose_data, classes, clients)
@@ -225,7 +231,6 @@ if __name__ == "__main__":
     ax.set_ylabel('Class ID')
     ax.set_xlabel('Party ID')
 
-
     # if client_num == len(classes):
     fig.set_figheight(5)
     fig.set_figwidth(7)
@@ -233,7 +238,6 @@ if __name__ == "__main__":
     fig.tight_layout()
 
     plt.show()
-
 
     if args.plus_common_data:
         file_name = "WithCommon_" + args.dataset + '_partition' + str(partition_method) + \
@@ -246,4 +250,4 @@ if __name__ == "__main__":
             '_clients' + str(client_num)
 
     plt.savefig(file_name + '.pdf')
-
+    # 显示图表，并将其保存为PDF文件。

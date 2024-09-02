@@ -6,14 +6,20 @@ import torch
 import torch.utils.data as data
 import torchvision.transforms as transforms
 from torchvision.datasets import SVHN
-
+# 导入了日志记录、随机数生成、NumPy、PyTorch及其数据加载模块、PIL图像处理库等。
 from .datasets import SVHN_truncated, SVHN_truncated_WO_reload
 
 from data_preprocessing.utils.imbalance_data import ImbalancedDatasetSampler
 
+# 这段代码是一个Python脚本，用于处理SVHN（Street View House Numbers）数据集的加载、变换、划分和数据加载器的创建。
+# 以下是对代码中每个部分的详细解释：
+# 整体来看，这段代码提供了一套工具来加载、变换、划分和处理SVHN数据集，支持不同的训练模式，包括分布式和非分布式训练。
+# 通过使用不同的划分方法，代码能够适应不同的数据分布情况。此外，代码还考虑了数据增强和自定义的数据加载需求，提供了灵活的数据加载选项。
+
 
 # generate the non-IID distribution for all methods
 def read_data_distribution(filename='./data_preprocessing/non-iid-distribution/SVHN/distribution.txt'):
+    # 这些函数从文件中读取非IID数据分布和网络数据索引映射，并将其解析为Python字典。
     distribution = {}
     with open(filename, 'r') as data:
         for x in data.readlines():
@@ -29,6 +35,7 @@ def read_data_distribution(filename='./data_preprocessing/non-iid-distribution/S
 
 
 def read_net_dataidx_map(filename='./data_preprocessing/non-iid-distribution/SVHN/net_dataidx_map.txt'):
+    # 这些函数从文件中读取非IID数据分布和网络数据索引映射，并将其解析为Python字典。
     net_dataidx_map = {}
     with open(filename, 'r') as data:
         for x in data.readlines():
@@ -44,6 +51,7 @@ def read_net_dataidx_map(filename='./data_preprocessing/non-iid-distribution/SVH
 
 
 def record_net_data_stats(y_train, net_dataidx_map):
+    # 这个函数根据客户端的数据索引映射记录每个客户端的数据类别统计信息。
     net_cls_counts = {}
 
     for net_i, dataidx in net_dataidx_map.items():
@@ -55,6 +63,7 @@ def record_net_data_stats(y_train, net_dataidx_map):
 
 
 class Cutout(object):
+    # 定义了一个 Cutout 类，用于图像数据增强中的裁剪操作。
     def __init__(self, length):
         self.length = length
 
@@ -77,6 +86,7 @@ class Cutout(object):
 
 
 def _data_transforms_SVHN():
+    # 定义了SVHN数据集的训练和测试变换操作。
     SVHN_MEAN = [0.5, 0.5, 0.5]
     SVHN_STD = [0.5, 0.5, 0.5]
 
@@ -101,6 +111,7 @@ def _data_transforms_SVHN():
 
 
 def load_SVHN_data(datadir, args=None):
+    # 加载SVHN数据集，并返回数据和标签。
     train_transform, test_transform = _data_transforms_SVHN()
 
     # def target_transform(target):
@@ -121,6 +132,7 @@ def load_SVHN_data(datadir, args=None):
 
 
 def partition_data(dataset, datadir, partition, n_nets, alpha, args=None):
+    # 根据指定的划分方法对数据集进行划分，支持同质（homo/iid）、异质（hetero）和长尾（long-tail）划分。
     logging.info("*********partition data***************")
     X_train, y_train, X_test, y_test, SVHN_train_ds, SVHN_test_ds = load_SVHN_data(
         datadir, args)
@@ -286,7 +298,7 @@ def get_dataloader_test(dataset, datadir, train_bs, test_bs, dataidxs_train, dat
 
 def get_dataloader_SVHN(datadir, train_bs, test_bs, dataidxs=None, args=None,
                         full_train_dataset=None, full_test_dataset=None):
-
+    # 创建SVHN数据集的数据加载器。
     transform_train, transform_test = _data_transforms_SVHN()
     # def target_transform(target):
     #     return int(target) - 1
@@ -336,6 +348,7 @@ def get_dataloader_test_SVHN(datadir, train_bs, test_bs, dataidxs_train=None, da
 
 def load_partition_data_distributed_SVHN(process_id, dataset, data_dir, partition_method, partition_alpha,
                                             client_number, batch_size, args=None):
+    # 加载分布式训练场景下的SVHN数据集。
     X_train, y_train, X_test, y_test, net_dataidx_map, traindata_cls_counts, \
         SVHN_train_ds, SVHN_test_ds = partition_data(dataset,
                                             data_dir,
@@ -372,6 +385,7 @@ def load_partition_data_distributed_SVHN(process_id, dataset, data_dir, partitio
 
 def load_partition_data_SVHN(dataset, data_dir, partition_method, partition_alpha, client_number, batch_size,
                                 args=None):
+    # 加载非分布式训练场景下的SVHN数据集。
     X_train, y_train, X_test, y_test, net_dataidx_map, traindata_cls_counts, \
         SVHN_train_ds, SVHN_test_ds = partition_data(dataset,
                                             data_dir,

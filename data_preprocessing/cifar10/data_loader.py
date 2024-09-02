@@ -13,8 +13,13 @@ from .transform import data_transforms_cifar10
 from data_preprocessing.utils.imbalance_data import ImbalancedDatasetSampler
 
 
+# 这段代码是一个Python脚本，用于处理和加载CIFAR-10数据集，同时支持不同的数据划分方法，以适应不同的分布式学习场景。
+# 以下是对代码中每个部分的解释：
+
 # generate the non-IID distribution for all methods
 def read_data_distribution(filename='./data_preprocessing/non-iid-distribution/CIFAR10/distribution.txt'):
+    # 定义了多个函数，用于读取非IID数据分布和网络数据索引映射文件：
+    # 这些函数从文件中读取数据，并将其解析为Python字典。
     distribution = {}
     with open(filename, 'r') as data:
         for x in data.readlines():
@@ -30,6 +35,8 @@ def read_data_distribution(filename='./data_preprocessing/non-iid-distribution/C
 
 
 def read_net_dataidx_map(filename='./data_preprocessing/non-iid-distribution/CIFAR10/net_dataidx_map.txt'):
+    # 定义了多个函数，用于读取非IID数据分布和网络数据索引映射文件：
+    # 这些函数从文件中读取数据，并将其解析为Python字典。
     net_dataidx_map = {}
     with open(filename, 'r') as data:
         for x in data.readlines():
@@ -45,6 +52,7 @@ def read_net_dataidx_map(filename='./data_preprocessing/non-iid-distribution/CIF
 
 
 def record_net_data_stats(y_train, net_dataidx_map):
+    # 定义了record_net_data_stats函数，用于记录每个客户端的数据类别统计信息：
     net_cls_counts = {}
 
     for net_i, dataidx in net_dataidx_map.items():
@@ -55,10 +63,8 @@ def record_net_data_stats(y_train, net_dataidx_map):
     return net_cls_counts
 
 
-
-
-
 def load_cifar10_data(datadir, resize=32, augmentation=True, args=None):
+    # 定义了 load_cifar10_data 函数，用于加载 CIFAR-10 数据集，并对其进行变换：
     # train_transform, test_transform = _data_transforms_cifar10()
     train_transform, test_transform = data_transforms_cifar10(resize=resize, augmentation=augmentation)
 
@@ -76,6 +82,8 @@ def load_cifar10_data(datadir, resize=32, augmentation=True, args=None):
 
 
 def partition_data(dataset, datadir, partition, n_nets, alpha, resize=32, augmentation=True, args=None):
+    # 定义了 partition_data 函数，根据指定的划分方法对数据集进行划分：
+    # 支持同质（homo）、异质（hetero）、固定异质（hetero-fix）和长尾（long-tail）划分方法。
     logging.info("*********partition data***************")
     X_train, y_train, X_test, y_test, cifar10_train_ds, cifar10_test_ds = load_cifar10_data(
         datadir, resize=resize, augmentation=augmentation, args=args)
@@ -228,18 +236,18 @@ def partition_data(dataset, datadir, partition, n_nets, alpha, resize=32, augmen
                 cifar10_train_ds, cifar10_test_ds
 
 
-def get_dataloader(dataset, datadir, train_bs, test_bs, dataidxs=None,
-                        resize=32, augmentation=True, args=None,
-                        full_train_dataset=None, full_test_dataset=None):
+def get_dataloader(dataset, datadir, train_bs, test_bs, dataidxs=None, resize=32, augmentation=True, args=None,
+                    full_train_dataset=None, full_test_dataset=None):
+    # 定义了 get_dataloader 和 get_dataloader_CIFAR10 函数，用于创建数据加载器：
     return get_dataloader_CIFAR10(datadir, train_bs, test_bs, dataidxs,
                         resize=resize, augmentation=augmentation, args=args,
                         full_train_dataset=full_train_dataset, full_test_dataset=full_test_dataset)
 
 
-def get_dataloader_CIFAR10(datadir, train_bs, test_bs, dataidxs=None,
-                        resize=32, augmentation=True, args=None,
-                        full_train_dataset=None, full_test_dataset=None):
-
+def get_dataloader_CIFAR10(datadir, train_bs, test_bs, dataidxs=None, resize=32, augmentation=True, args=None,
+                            full_train_dataset=None, full_test_dataset=None):
+    # 定义了 get_dataloader 和 get_dataloader_CIFAR10 函数，用于创建数据加载器：
+    # 这些函数使用PyTorch的DataLoader来加载数据，并支持自定义的数据索引。
     # transform_train, transform_test = _data_transforms_cifar10()
     train_transform, test_transform = data_transforms_cifar10(resize=resize, augmentation=augmentation)
 
@@ -265,9 +273,9 @@ def get_dataloader_CIFAR10(datadir, train_bs, test_bs, dataidxs=None,
     return train_dl, test_dl
 
 
-
 def load_partition_data_distributed_cifar10(process_id, dataset, data_dir, partition_method, partition_alpha,
                                             client_number, batch_size, args=None):
+    # 定义了load_partition_data_distributed_cifar10 函数，用于分布式设置中加载划分的数据：
     X_train, y_train, X_test, y_test, net_dataidx_map, traindata_cls_counts, \
         cifar10_train_ds, cifar10_test_ds = partition_data(dataset,
                                             data_dir,
@@ -302,8 +310,8 @@ def load_partition_data_distributed_cifar10(process_id, dataset, data_dir, parti
     return train_data_num, train_data_global, test_data_global, local_data_num, train_data_local, test_data_local, class_num
 
 
-def load_partition_data_cifar10(dataset, data_dir, partition_method, partition_alpha, client_number, batch_size,
-                                args=None):
+def load_partition_data_cifar10(dataset, data_dir, partition_method, partition_alpha, client_number, batch_size, args=None):
+    # 定义了load_partition_data_cifar10函数，用于非分布式设置中加载划分的数据：
     X_train, y_train, X_test, y_test, net_dataidx_map, traindata_cls_counts, \
         cifar10_train_ds, cifar10_test_ds = partition_data(dataset,
                                             data_dir,
@@ -348,9 +356,9 @@ def load_partition_data_cifar10(dataset, data_dir, partition_method, partition_a
         test_data_local_dict[client_index] = test_data_local
     # return train_data_num, test_data_num, train_data_global, test_data_global, \
     #        data_local_num_dict, train_data_local_dict, test_data_local_dict, class_num, traindata_cls_counts
-    return train_data_num, test_data_num, train_data_global, test_data_global, \
-        data_local_num_dict, train_data_local_dict, test_data_local_dict, class_num
-
+    return (train_data_num, test_data_num, train_data_global, test_data_global, data_local_num_dict,
+            train_data_local_dict, test_data_local_dict, class_num)
+    # 这个函数返回了全局和本地的数据加载器、数据量、类别数量等信息。
 
 
 

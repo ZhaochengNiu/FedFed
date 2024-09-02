@@ -3,7 +3,7 @@ import random
 import math
 import functools
 import os
-
+# 导入了日志记录、随机数生成、数学计算、函数式编程工具、操作系统接口等模块。
 import numpy as np
 import torch
 import torch.utils.data as data
@@ -30,15 +30,20 @@ from .FashionMNIST.datasets import data_transforms_fmnist
 
 from data_preprocessing.utils.stats import record_net_data_stats
 
-
+# 这段代码定义了一个名为 Data_Loader 的 Python 类，用于加载和处理多种数据集，特别是针对机器学习和深度学习任务。
+# 以下是对代码中每个部分的详细解释：
+# 整体来看，Data_Loader 类提供了一套灵活的工具来加载和处理多种数据集，支持不同的训练模式，包括联邦学习和集中式训练。
+# 通过使用变换函数，代码能够适应不同的数据增强和标准化需求。此外，类还提供了数据分区的功能，可以根据不同的策略将数据分配给不同的客户端。
 
 NORMAL_DATASET_LIST = ["cifar10", "cifar100", "SVHN",
                         "mnist", "fmnist", "femnist-digit", "Tiny-ImageNet-200"]
-
+# 定义了一个包含多个数据集名称的列表。
 
 
 class Data_Loader(object):
+    # 定义了一个名为 Data_Loader 的类，用于加载和处理数据集。
 
+    # 定义了多个类属性字典，用于存储不同数据集的完整数据加载对象、子数据加载对象、变换函数、类别数量和图像分辨率。
     full_data_obj_dict = {
         "cifar10": CIFAR10,
         "cifar100": CIFAR100,
@@ -68,7 +73,6 @@ class Data_Loader(object):
         "fmnist": 10,
     }
 
-
     image_resolution_dict = {
         "cifar10": 32,
         "cifar100": 32,
@@ -76,13 +80,12 @@ class Data_Loader(object):
         "fmnist": 32,
     }
 
-
     def __init__(self, args=None, process_id=0, mode="centralized", task="centralized",
                 data_efficient_load=True, dirichlet_balance=False, dirichlet_min_p=None,
                 dataset="", datadir="./", partition_method="hetero", partition_alpha=0.5, client_number=1, batch_size=128, num_workers=4,
                 data_sampler=None,
                 resize=32, augmentation="default", other_params={}):
-
+        # 定义了 Data_Loader 类的构造函数，接受多个参数以定制化数据加载和处理方式。
         # less use this.
         self.args = args
 
@@ -112,21 +115,17 @@ class Data_Loader(object):
 
         self.init_dataset_obj()
 
-
-
-
     def load_data(self):
         self.federated_standalone_split() 
         self.other_params["train_cls_local_counts_dict"] = self.train_cls_local_counts_dict
         self.other_params["client_dataidx_map"] = self.client_dataidx_map
 
-
         return self.train_data_global_num, self.test_data_global_num, self.train_data_global_dl, self.test_data_global_dl, \
                self.train_data_local_num_dict, self.test_data_local_num_dict, self.test_data_local_dl_dict, self.train_data_local_ori_dict,self.train_targets_local_ori_dict,\
                self.class_num, self.other_params
 
-
     def init_dataset_obj(self):
+        # 初始化数据集对象，根据数据集名称加载相应的类和变换函数。
         self.full_data_obj = Data_Loader.full_data_obj_dict[self.dataset]
         self.sub_data_obj = Data_Loader.sub_data_obj_dict[self.dataset]
         logging.info(f"dataset augmentation: {self.augmentation}, resize: {self.resize}")
@@ -134,18 +133,16 @@ class Data_Loader(object):
         self.class_num = Data_Loader.num_classes_dict[self.dataset]
         self.image_resolution = Data_Loader.image_resolution_dict[self.dataset]
 
-
-
     def get_transform(self, resize, augmentation, dataset_type, image_resolution=32):
+        # 根据提供的参数获取数据增强和标准化的变换。
         MEAN, STD, train_transform, test_transform = \
             self.transform_func(
                 resize=resize, augmentation=augmentation, dataset_type=dataset_type, image_resolution=image_resolution)
         # if self.args.Contrastive == "SimCLR":
         return MEAN, STD, train_transform, test_transform
 
-
-
     def load_full_data(self):
+        # 加载完整的数据集，并应用变换。
         # For cifar10, cifar100, SVHN, FMNIST
         MEAN, STD, train_transform, test_transform = self.get_transform(
             self.resize, self.augmentation, "full_dataset", self.image_resolution)
@@ -168,7 +165,7 @@ class Data_Loader(object):
 
 # got it 加载不同子数据集
     def load_sub_data(self, client_index, train_ds, test_ds):
-
+        # 根据客户端索引加载子数据集。
         # Maybe only ``federated`` needs this.
         dataidxs = self.client_dataidx_map[client_index]
         train_data_local_num = len(dataidxs)
@@ -190,6 +187,7 @@ class Data_Loader(object):
         return train_ds_local, test_ds_local, train_ori_data, train_ori_targets, train_data_local_num, test_data_local_num
 
     def get_dataloader(self, train_ds, test_ds,shuffle=True, drop_last=False, train_sampler=None, num_workers=1):
+        # 创建并返回训练和测试数据的加载器。
         logging.info(f"shuffle: {shuffle}, drop_last:{drop_last}, train_sampler:{train_sampler} ")
         train_dl = data.DataLoader(dataset=train_ds, batch_size=self.batch_size, shuffle=shuffle,   # dl means dataloader
                                 drop_last=drop_last, sampler=train_sampler, num_workers=num_workers) # sampler定义自己的sampler策略，如果指定这个参数，则shuffle必须为False
@@ -198,8 +196,8 @@ class Data_Loader(object):
 
         return train_dl, test_dl
 
-
     def get_y_train_np(self, train_ds):
+        # 获取训练数据集的标签，并转换为 NumPy 数组。
         if self.dataset in ["fmnist"]:
             y_train = train_ds.targets.data
         elif self.dataset in ["SVHN"]:
@@ -209,9 +207,8 @@ class Data_Loader(object):
         y_train_np = np.array(y_train)
         return y_train_np
 
-
     def federated_standalone_split(self):
-
+        # 为联邦学习或独立训练场景分割数据。
         train_ds, test_ds = self.load_full_data()
         y_train_np = self.get_y_train_np(train_ds)  
 
@@ -227,8 +224,6 @@ class Data_Loader(object):
                 shuffle=True, drop_last=False, train_sampler=None, num_workers=self.num_workers)
         logging.info("train_dl_global number = " + str(len(self.train_data_global_dl)))
         logging.info("test_dl_global number = " + str(len(self.test_data_global_dl)))
-
-
 
         self.train_data_local_num_dict = dict()  
         self.test_data_local_num_dict = dict()
@@ -246,8 +241,6 @@ class Data_Loader(object):
             logging.info("client_ID = %d, local_train_sample_number = %d, local_test_sample_number = %d" % \
                          (client_index, train_data_local_num, test_data_local_num))
 
-
-
             train_data_local_dl, test_data_local_dl = self.get_dataloader(train_ds_local, test_ds_local,
                                                                           shuffle=True, drop_last=False, num_workers=self.num_workers)
             logging.info("client_index = %d, batch_num_train_local = %d, batch_num_test_local = %d" % (
@@ -258,11 +251,9 @@ class Data_Loader(object):
             self.train_targets_local_ori_dict[client_index] = train_ori_targets
             self.test_data_local_dl_dict[client_index] = test_data_local_dl
 
-
-
-
     # centralized loading
     def load_centralized_data(self):
+        # 为集中式训练场景加载数据。
         self.train_ds, self.test_ds = self.load_full_data()
         self.train_data_num = len(self.train_ds)
         self.test_data_num = len(self.test_ds)
@@ -270,12 +261,8 @@ class Data_Loader(object):
                 self.train_ds, self.test_ds,
                 shuffle=True, drop_last=False, train_sampler=None, num_workers=self.num_workers)
 
-
-
-
-
-
     def partition_data(self, y_train_np, train_data_num):
+        # 根据指定的分区方法对数据进行分区。
         logging.info("partition_method = " + (self.partition_method))
         if self.partition_method in ["homo", "iid"]:
             total_num = train_data_num
@@ -283,7 +270,6 @@ class Data_Loader(object):
             batch_idxs = np.array_split(idxs, self.client_number)
             client_dataidx_map = {i: batch_idxs[i] for i in range(self.client_number)}
 
- 
         elif self.partition_method == "hetero":
             min_size = 0
             K = self.class_num    
@@ -366,7 +352,6 @@ class Data_Loader(object):
                 raise NotImplementedError
 
             main_prop = self.partition_alpha / (self.client_number // self.class_num)
-
 
             tail_prop = (1 - main_prop) / (self.client_number - self.client_number // self.class_num)
 
